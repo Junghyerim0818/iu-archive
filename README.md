@@ -28,7 +28,8 @@ python app.py
 ## 배포 (Vercel)
 `vercel.json`이 포함되어 있으며 `app.py`를 엔트리로 사용합니다.  
 Vercel의 "Environment Variables"에 위 설정값을 등록한 뒤 배포하세요.  
-주의: Vercel 서버리스 파일시스템은 일시적이므로 실제 운영 시 `STORAGE_BACKEND=s3`로 설정하고 S3 버킷을 사용하는 것을 권장합니다. 현재 코드는 S3 또는 로컬 파일시스템을 선택적으로 사용합니다.
+주의: Vercel 서버리스 파일시스템은 일시적이므로 실제 운영 시 `STORAGE_BACKEND=s3`로 설정하고 S3 버킷을 사용하는 것을 권장합니다. 현재 코드는 S3 또는 로컬 파일시스템을 선택적으로 사용합니다.  
+데이터베이스를 Neon(PostgreSQL)로 사용할 때는 Vercel에서 제공하는 `DATABASE_URL`(postgres 접두사)을 그대로 설정하면 됩니다. 서버리스 환경에서는 풀을 사용하지 않도록 설정되어 있습니다.
 
 ## 기능 요약
 - 구글 로그인 전용

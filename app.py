@@ -16,6 +16,7 @@ from flask import (
     send_from_directory,
 )
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.pool import NullPool
 from werkzeug.utils import secure_filename
 import boto3
 from botocore.client import Config
@@ -29,10 +30,17 @@ default_sqlite = (
 )
 
 app = Flask(__name__)
+engine_options = {}
+postgres_uri = os.getenv("DATABASE_URL", default_sqlite)
+if postgres_uri.startswith("postgres") and IS_SERVERLESS:
+    # 서버리스 + Postgres(Neon 등)에서는 연결 풀을 끄고 pre_ping을 켭니다.
+    engine_options = {"poolclass": NullPool, "pool_pre_ping": True}
+
 app.config.update(
     SECRET_KEY=os.getenv("SECRET_KEY", "dev-secret"),
-    SQLALCHEMY_DATABASE_URI=os.getenv("DATABASE_URL", default_sqlite),
+    SQLALCHEMY_DATABASE_URI=postgres_uri,
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    SQLALCHEMY_ENGINE_OPTIONS=engine_options,
     UPLOAD_FOLDER=BASE_DIR / "uploads",
     DAILY_UPLOAD_LIMIT=int(os.getenv("DAILY_UPLOAD_LIMIT", "10")),
     STORAGE_BACKEND=os.getenv("STORAGE_BACKEND", "local"),  # local or s3
@@ -53,6 +61,25 @@ if app.config["STORAGE_BACKEND"] == "s3":
         config=Config(signature_version="s3v4"),
         **session_kwargs,
     )
+
+
+def ensure_sqlite_schema():
+    """SQLite 사용 시 스키마를 보장 (서버리스는 /tmp 사용)."""
+    uri = app.config["SQLALCHEMY_DATABASE_URI"]
+    if not uri.startswith("sqlite:"):
+        return
+    db_path = Path(uri.replace("sqlite:///", ""))
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    db.create_all()
+
+
+# AUTO_DDL=0 이 아니면 앱 로드 시 SQLite 스키마를 자동 생성 (서버리스 포함)
+if os.getenv("AUTO_DDL", "1") == "1":
+    try:
+        with app.app_context():
+            ensure_sqlite_schema()
+    except Exception as exc:
+        app.logger.warning("자동 스키마 생성 실패: %s", exc)
 
 
 class User(db.Model):
@@ -341,17 +368,8 @@ def logout():
     return redirect(url_for("home"))
 
 
-# 로컬 실행 시에만 DB 스키마 생성 (서버리스 배포는 읽기 전용이므로 별도 관리)
-def maybe_create_db():
-    uri = app.config["SQLALCHEMY_DATABASE_URI"]
-    if uri.startswith("sqlite:///"):
-        db_path = Path(uri.replace("sqlite:///", ""))
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-    db.create_all()
-
-
 if __name__ == "__main__":
     with app.app_context():
-        maybe_create_db()
+        ensure_sqlite_schema()
     app.run(host="0.0.0.0", port=8000, debug=True)
 
