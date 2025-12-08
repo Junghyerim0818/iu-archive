@@ -21,13 +21,17 @@ import boto3
 from botocore.client import Config
 
 BASE_DIR = Path(__file__).parent
+IS_SERVERLESS = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+
+# 서버리스에서는 /tmp 만 쓰기 가능하므로 기본 DB 경로를 /tmp로 변경
+default_sqlite = (
+    f"sqlite:////tmp/iu_archive.db" if IS_SERVERLESS else f"sqlite:///{BASE_DIR / 'iu_archive.db'}"
+)
 
 app = Flask(__name__)
 app.config.update(
     SECRET_KEY=os.getenv("SECRET_KEY", "dev-secret"),
-    SQLALCHEMY_DATABASE_URI=os.getenv(
-        "DATABASE_URL", f"sqlite:///{BASE_DIR / 'iu_archive.db'}"
-    ),
+    SQLALCHEMY_DATABASE_URI=os.getenv("DATABASE_URL", default_sqlite),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     UPLOAD_FOLDER=BASE_DIR / "uploads",
     DAILY_UPLOAD_LIMIT=int(os.getenv("DAILY_UPLOAD_LIMIT", "10")),
@@ -337,11 +341,17 @@ def logout():
     return redirect(url_for("home"))
 
 
-# 서버가 시작될 때 스키마를 보장
-with app.app_context():
+# 로컬 실행 시에만 DB 스키마 생성 (서버리스 배포는 읽기 전용이므로 별도 관리)
+def maybe_create_db():
+    uri = app.config["SQLALCHEMY_DATABASE_URI"]
+    if uri.startswith("sqlite:///"):
+        db_path = Path(uri.replace("sqlite:///", ""))
+        db_path.parent.mkdir(parents=True, exist_ok=True)
     db.create_all()
 
 
 if __name__ == "__main__":
+    with app.app_context():
+        maybe_create_db()
     app.run(host="0.0.0.0", port=8000, debug=True)
 
