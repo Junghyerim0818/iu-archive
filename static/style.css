@@ -1,0 +1,145 @@
+:root {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: #111;
+  background: #fafafa;
+}
+
+body {
+  margin: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #111;
+  color: #fff;
+}
+
+.nav a {
+  margin-left: 12px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.brand {
+  font-weight: 700;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.card figcaption {
+  padding: 8px;
+  font-size: 14px;
+}
+
+.footer {
+  padding: 16px;
+  text-align: center;
+  color: #666;
+}
+
+.flash {
+  list-style: none;
+  margin: 0;
+  padding: 12px 16px;
+  background: #fff3cd;
+  border-bottom: 1px solid #ffe69c;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+}
+
+input, button {
+  padding: 10px;
+  font-size: 14px;
+}
+
+button {
+  background: #4b63ff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+button.secondary {
+  background: #ddd;
+  color: #111;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+}
+
+.list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.badge.approved { background: #d1e7dd; }
+.badge.pending { background: #ffe5d3; }
+.badge.rejected { background: #f8d7da; }
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.small {
+  font-size: 12px;
+  color: #666;
+}
+

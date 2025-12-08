@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>사진 업로드</h1>
+<p>오늘 업로드: {{ today_count }} / {{ limit }}</p>
+
+<form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" class="form">
+  <label>
+    행사명
+    <input type="text" name="event_name" placeholder="콘서트, 팬미팅 등" required>
+  </label>
+  <label>
+    촬영일
+    <input type="date" name="taken_date" value="{{ today }}">
+  </label>
+  <label>
+    사진 파일
+    <input type="file" name="photo" accept="image/*" required>
+  </label>
+  <button type="submit">업로드 요청</button>
+</form>
+{% endblock %}
+

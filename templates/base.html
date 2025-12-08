@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IU Archive</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">IU Archive</div>
+    <nav class="nav">
+      <a href="{{ url_for('home') }}">홈</a>
+      <a href="{{ url_for('archive') }}">아카이브</a>
+      {% if user %}
+        <a href="{{ url_for('upload') }}">업로드</a>
+        <a href="{{ url_for('profile') }}">내 정보</a>
+        {% if user.is_admin %}
+          <a href="{{ url_for('admin_pending') }}">관리 승인</a>
+        {% endif %}
+        <a href="{{ url_for('logout') }}">로그아웃</a>
+      {% else %}
+        <a href="{{ url_for('login') }}">구글 로그인</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul class="flash">
+        {% for msg in messages %}
+          <li>{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <span>팬이 만드는 아이유 사진 아카이브</span>
+  </footer>
+</body>
+</html>
+

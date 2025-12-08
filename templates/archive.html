@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>아카이브</h1>
+{% if grouped %}
+  {% for key, photos in grouped.items() %}
+    <h2>{{ key }}</h2>
+    <div class="grid">
+      {% for photo in photos %}
+        <figure class="card">
+          <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}">
+          <figcaption>{{ photo.taken_date }} · {{ photo.event_name }}</figcaption>
+        </figure>
+      {% endfor %}
+    </div>
+  {% endfor %}
+{% else %}
+  <p>아직 승인된 사진이 없습니다.</p>
+{% endif %}
+{% endblock %}
+

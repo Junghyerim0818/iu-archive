@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>내 정보</h1>
+<div class="profile">
+  {% if user.picture %}<img src="{{ user.picture }}" alt="avatar">{% endif %}
+  <div>
+    <p><strong>{{ user.name or user.email }}</strong></p>
+    <p>{{ user.email }}</p>
+    <p>권한: {{ '관리자' if user.is_admin else '일반' }}</p>
+  </div>
+</div>
+
+<h2>최근 업로드</h2>
+{% if photos %}
+  <ul class="list">
+    {% for photo in photos %}
+      <li>
+        <span>{{ photo.taken_date }} · {{ photo.event_name }}</span>
+        <span class="badge {{ photo.status }}">{{ photo.status }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>업로드 기록이 없습니다.</p>
+{% endif %}
+{% endblock %}
+

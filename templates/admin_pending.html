@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>관리자 승인 대기</h1>
+
+{% if photos %}
+  <div class="grid">
+    {% for photo in photos %}
+      <figure class="card">
+        <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}">
+        <figcaption>
+          <div>{{ photo.taken_date }} · {{ photo.event_name }}</div>
+          <div class="small">{{ photo.original_name }} / {{ photo.user.email }}</div>
+          <form method="post" class="actions">
+            <input type="hidden" name="photo_id" value="{{ photo.id }}">
+            <button name="action" value="approve">승인</button>
+            <button name="action" value="reject" class="secondary">거절</button>
+          </form>
+        </figcaption>
+      </figure>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>대기 중인 업로드가 없습니다.</p>
+{% endif %}
+{% endblock %}
+

@@ -1,0 +1,347 @@
+import os
+from datetime import date, datetime
+from functools import wraps
+from pathlib import Path
+from typing import Optional
+
+from authlib.integrations.flask_client import OAuth
+from flask import (
+    Flask,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+    send_from_directory,
+)
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.utils import secure_filename
+import boto3
+from botocore.client import Config
+
+BASE_DIR = Path(__file__).parent
+
+app = Flask(__name__)
+app.config.update(
+    SECRET_KEY=os.getenv("SECRET_KEY", "dev-secret"),
+    SQLALCHEMY_DATABASE_URI=os.getenv(
+        "DATABASE_URL", f"sqlite:///{BASE_DIR / 'iu_archive.db'}"
+    ),
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    UPLOAD_FOLDER=BASE_DIR / "uploads",
+    DAILY_UPLOAD_LIMIT=int(os.getenv("DAILY_UPLOAD_LIMIT", "10")),
+    STORAGE_BACKEND=os.getenv("STORAGE_BACKEND", "local"),  # local or s3
+    S3_BUCKET=os.getenv("S3_BUCKET"),
+    S3_REGION=os.getenv("S3_REGION", "ap-northeast-2"),
+    S3_ENDPOINT=os.getenv("S3_ENDPOINT"),  # 옵션: 커스텀 엔드포인트
+)
+
+db = SQLAlchemy(app)
+s3_client = None
+if app.config["STORAGE_BACKEND"] == "s3":
+    session_kwargs = {}
+    if app.config["S3_ENDPOINT"]:
+        session_kwargs["endpoint_url"] = app.config["S3_ENDPOINT"]
+    s3_client = boto3.client(
+        "s3",
+        region_name=app.config["S3_REGION"],
+        config=Config(signature_version="s3v4"),
+        **session_kwargs,
+    )
+
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    name = db.Column(db.String(255))
+    picture = db.Column(db.String(512))
+    is_admin = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Photo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    relative_path = db.Column(db.String(512), nullable=False)
+    original_name = db.Column(db.String(255))
+    event_name = db.Column(db.String(255))
+    taken_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(32), default="pending")  # pending/approved/rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", backref="photos")
+
+
+def current_user() -> Optional[User]:
+    uid = session.get("user_id")
+    if not uid:
+        return None
+    return db.session.get(User, uid)
+
+
+def login_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not current_user():
+            flash("로그인이 필요합니다.")
+            return redirect(url_for("home"))
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+def admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        user = current_user()
+        if not user or not user.is_admin:
+            flash("관리자만 접근 가능합니다.")
+            return redirect(url_for("home"))
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+oauth = OAuth(app)
+oauth.register(
+    name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
+)
+
+
+def ensure_upload_folder() -> Path:
+    upload_root = Path(app.config["UPLOAD_FOLDER"])
+    upload_root.mkdir(parents=True, exist_ok=True)
+    return upload_root
+
+
+@app.route("/")
+def home():
+    approved_recent = (
+        Photo.query.filter_by(status="approved")
+        .order_by(Photo.created_at.desc())
+        .limit(12)
+        .all()
+    )
+    return render_template("home.html", photos=approved_recent, user=current_user())
+
+
+@app.route("/archive")
+def archive():
+    approved = (
+        Photo.query.filter_by(status="approved")
+        .order_by(Photo.taken_date.desc(), Photo.created_at.desc())
+        .all()
+    )
+
+    grouped = {}
+    for photo in approved:
+        key = f"{photo.taken_date} | {photo.event_name or '기타'}"
+        grouped.setdefault(key, []).append(photo)
+
+    return render_template(
+        "archive.html", grouped=grouped, user=current_user(), upload_root="files"
+    )
+
+
+@app.route("/files/<path:filename>")
+def files(filename):
+    if app.config["STORAGE_BACKEND"] == "s3":
+        # 로컬 라우팅 불가, 아카이브에서 presigned URL을 직접 사용합니다.
+        flash("파일은 S3에서 제공됩니다.")
+        return redirect(url_for("archive"))
+    upload_root = ensure_upload_folder()
+    return send_from_directory(upload_root, filename)
+
+
+@app.route("/upload", methods=["GET", "POST"])
+@login_required
+def upload():
+    user = current_user()
+    today_count = (
+        Photo.query.filter(
+            Photo.user_id == user.id,
+            db.func.date(Photo.created_at) == date.today(),
+        ).count()
+    )
+    limit = app.config["DAILY_UPLOAD_LIMIT"]
+
+    if request.method == "POST":
+        if today_count >= limit and not user.is_admin:
+            flash("오늘 업로드 한도에 도달했습니다. 내일 다시 시도해주세요.")
+            return redirect(url_for("upload"))
+
+        file = request.files.get("photo")
+        event_name = request.form.get("event_name", "").strip() or "기타"
+        taken_date_str = request.form.get("taken_date") or str(date.today())
+        try:
+            taken_date_value = datetime.strptime(taken_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            flash("날짜 형식이 올바르지 않습니다.")
+            return redirect(url_for("upload"))
+
+        if not file or file.filename == "":
+            flash("파일을 선택해주세요.")
+            return redirect(url_for("upload"))
+
+        safe_name = secure_filename(file.filename)
+        if not safe_name:
+            flash("파일 이름이 올바르지 않습니다.")
+            return redirect(url_for("upload"))
+
+        upload_root = ensure_upload_folder()
+        folder_name = f"{taken_date_value}_{event_name.replace(' ', '_')}"
+        target_dir = upload_root / folder_name
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+        relative_path = Path(folder_name) / f"{timestamp}_{safe_name}"
+
+        if app.config["STORAGE_BACKEND"] == "s3":
+            key = str(relative_path).replace("\\", "/")
+            file.stream.seek(0)
+            s3_client.upload_fileobj(
+                file.stream,
+                app.config["S3_BUCKET"],
+                key,
+                ExtraArgs={"ContentType": file.mimetype or "application/octet-stream"},
+            )
+        else:
+            file.save(target_dir / relative_path.name)
+
+        photo = Photo(
+            user_id=user.id,
+            relative_path=str(relative_path).replace("\\", "/"),
+            original_name=file.filename,
+            event_name=event_name,
+            taken_date=taken_date_value,
+            status="pending",
+        )
+        db.session.add(photo)
+        db.session.commit()
+
+        flash("업로드가 접수되었습니다. 관리자의 승인 후 아카이브에 노출됩니다.")
+        return redirect(url_for("archive"))
+
+    return render_template(
+        "upload.html",
+        user=user,
+        today_count=today_count,
+        limit=limit,
+        today=date.today(),
+    )
+
+
+@app.route("/admin/pending", methods=["GET", "POST"])
+@admin_required
+def admin_pending():
+    if request.method == "POST":
+        action = request.form.get("action")
+        photo_id = request.form.get("photo_id")
+        photo = db.session.get(Photo, photo_id)
+        if photo:
+            if action == "approve":
+                photo.status = "approved"
+            elif action == "reject":
+                photo.status = "rejected"
+            db.session.commit()
+            flash("처리되었습니다.")
+        return redirect(url_for("admin_pending"))
+
+    pending = Photo.query.filter_by(status="pending").order_by(Photo.created_at).all()
+    return render_template(
+        "admin_pending.html",
+        photos=pending,
+        user=current_user(),
+        upload_root="files",
+    )
+
+
+@app.route("/profile")
+@login_required
+def profile():
+    user = current_user()
+    my_photos = (
+        Photo.query.filter_by(user_id=user.id)
+        .order_by(Photo.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    return render_template("profile.html", user=user, photos=my_photos)
+
+
+def build_file_url(photo: Photo) -> str:
+    if app.config["STORAGE_BACKEND"] == "s3":
+        return s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": app.config["S3_BUCKET"], "Key": photo.relative_path},
+            ExpiresIn=3600,
+        )
+    return url_for("files", filename=photo.relative_path)
+
+
+@app.context_processor
+def inject_helpers():
+    return {"file_url": build_file_url}
+
+
+@app.route("/login")
+def login():
+    redirect_uri = url_for("auth_callback", _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+
+@app.route("/auth/callback")
+def auth_callback():
+    token = oauth.google.authorize_access_token()
+    userinfo = token.get("userinfo")
+    if not userinfo:
+        flash("구글 로그인에 실패했습니다.")
+        return redirect(url_for("home"))
+
+    email = userinfo["email"]
+    admin_emails = set(
+        e.strip().lower()
+        for e in os.getenv("ADMIN_EMAILS", "").split(",")
+        if e.strip()
+    )
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        user = User(
+            email=email,
+            name=userinfo.get("name"),
+            picture=userinfo.get("picture"),
+            is_admin=email.lower() in admin_emails,
+        )
+        db.session.add(user)
+    else:
+        user.name = userinfo.get("name")
+        user.picture = userinfo.get("picture")
+        user.is_admin = email.lower() in admin_emails
+    db.session.commit()
+
+    session["user_id"] = user.id
+    flash("로그인되었습니다.")
+    return redirect(url_for("home"))
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("로그아웃되었습니다.")
+    return redirect(url_for("home"))
+
+
+# 서버가 시작될 때 스키마를 보장
+with app.app_context():
+    db.create_all()
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000, debug=True)
+
