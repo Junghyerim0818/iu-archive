@@ -1,16 +1,55 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero">
-  <h1>IU Archive</h1>
-  <p>팬들이 함께 꾸리는 아이유 사진 아카이브<br>구글 로그인을 통해 업로드하고, 관리 승인 후 공개됩니다.</p>
-  {% if not user %}
-    <a href="{{ url_for('login') }}" style="display: inline-block; text-decoration: none;">
-      <button>구글 로그인으로 시작하기</button>
-    </a>
-  {% endif %}
-</section>
+<div class="main-hero">
+  <div class="hero-left">
+    <h1 class="hero-title">
+      We say growth<br>
+      <span class="highlight-red">in Numbers.</span>
+    </h1>
+    <div class="hero-content">
+      <p>IU Archive에서 모든 팬의 사진은 동등한 가치를 가집니다.</p>
+      <p>커뮤니티가 함께 만들어가는 아카이브를 통해 두려움 없이 공유하고, 함께 성장합니다.</p>
+    </div>
+    {% if user %}
+      <a href="{{ url_for('upload') }}" class="btn-hero">
+        글 작성하러 가기
+        <span class="arrow">→</span>
+      </a>
+    {% else %}
+      <a href="{{ url_for('login') }}" class="btn-hero">
+        시작하기
+        <span class="arrow">→</span>
+      </a>
+    {% endif %}
+  </div>
+  
+  <div class="hero-right">
+    <div class="stats-box">
+      <div class="stat-item">
+        <div class="stat-label">전체 게시글</div>
+        <div class="stat-value">{{ stats.total_photos | default(0) }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">승인된 글</div>
+        <div class="stat-value">{{ stats.approved_photos | default(0) }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">대기 중</div>
+        <div class="stat-value">{{ stats.pending_photos | default(0) }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">총 방문자 수</div>
+        <div class="stat-value">{{ stats.total_visitors | default(0) }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">오늘 방문자 수</div>
+        <div class="stat-value">{{ stats.today_visitors | default(0) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
 
-<section>
+<section class="recent-section">
   <h2>최근 승인된 사진</h2>
   {% if photos %}
     <div class="grid">

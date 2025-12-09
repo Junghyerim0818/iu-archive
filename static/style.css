@@ -49,55 +49,312 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  position: relative;
-  z-index: 10;
+  padding: 0 24px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05);
+  min-height: 64px;
 }
 
-.nav {
+.header-left {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 40px;
+  flex: 1;
 }
 
-.nav a {
-  color: #fff;
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   text-decoration: none;
-  font-weight: 500;
-  transition: color 0.3s ease;
-  position: relative;
 }
 
-.nav a:hover {
-  color: var(--accent-blue);
-}
-
-.nav a::after {
-  content: '';
-  position: absolute;
-  bottom: -4px;
-  left: 0;
-  width: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
-  transition: width 0.3s ease;
-}
-
-.nav a:hover::after {
-  width: 100%;
-}
-
-.brand {
+.logo-square {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
   font-weight: 700;
-  font-size: 20px;
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(107, 182, 255, 0.3);
+}
+
+.brand-text {
+  font-weight: 700;
+  font-size: 18px;
+  color: #111;
   background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: 0 0 30px rgba(107, 182, 255, 0.5);
+}
+
+.nav-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-item {
+  color: #111;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 15px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.nav-item:hover {
+  background: rgba(107, 182, 255, 0.1);
+  color: var(--accent-blue);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-login {
+  color: #111;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 15px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-login:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(107, 182, 255, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(107, 182, 255, 0.4);
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(107, 182, 255, 0.3);
+}
+
+.user-name {
+  color: #111;
+  font-weight: 500;
+  font-size: 14px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-logout {
+  color: #666;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-logout:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #111;
+}
+
+/* 한영 변환 버튼 */
+.lang-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-right: 16px;
+}
+
+.lang-btn {
+  background: transparent;
+  border: none;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #111;
+  transition: color 0.2s ease;
+  position: relative;
+}
+
+.lang-btn.active {
+  color: #e00;
+}
+
+.lang-btn:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #e00;
+}
+
+.lang-btn:hover {
+  color: #e00;
+}
+
+/* 메인 히어로 섹션 */
+.main-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  padding: 80px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  border-radius: 16px;
+  margin-top: 40px;
+  margin-bottom: 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.hero-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.hero-title {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111;
+  margin: 0 0 32px 0;
+  background: #fff;
+  padding: 0;
+}
+
+.hero-title .highlight-red {
+  color: #e00;
+}
+
+.hero-content {
+  margin-bottom: 40px;
+}
+
+.hero-content p {
+  color: #111;
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 0 0 16px 0;
+}
+
+.btn-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #e00;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 16px 32px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  width: fit-content;
+  box-shadow: 0 4px 12px rgba(224, 0, 0, 0.3);
+}
+
+.btn-hero:hover {
+  background: #c00;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(224, 0, 0, 0.4);
+}
+
+.btn-hero .arrow {
+  font-size: 20px;
+  transition: transform 0.3s ease;
+}
+
+.btn-hero:hover .arrow {
+  transform: translateX(4px);
+}
+
+/* 통계 박스 */
+.hero-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stats-box {
+  background: #fff;
+  border: 2px solid #e00;
+  border-radius: 8px;
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.stat-item {
+  margin-bottom: 32px;
+}
+
+.stat-item:last-child {
+  margin-bottom: 0;
+}
+
+.stat-label {
+  color: #e00;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  color: #111;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.recent-section {
+  margin-top: 80px;
+  padding-top: 60px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .container {
@@ -163,12 +420,17 @@ body::before {
   list-style: none;
   margin: 0;
   padding: 16px 24px;
-  background: rgba(255, 243, 205, 0.1);
+  background: rgba(255, 243, 205, 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 230, 156, 0.3);
-  color: #fff;
+  color: #856404;
   position: relative;
   z-index: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.flash li {
+  margin: 4px 0;
 }
 
 .form {
@@ -388,17 +650,80 @@ section {
 }
 
 /* 반응형 디자인 */
+@media (max-width: 1024px) {
+  .header-left {
+    gap: 24px;
+  }
+
+  .nav-main {
+    gap: 4px;
+  }
+
+  .nav-item {
+    padding: 12px 12px;
+    font-size: 14px;
+  }
+}
+
 @media (max-width: 768px) {
   .topbar {
     flex-direction: column;
     gap: 16px;
     padding: 16px;
+    min-height: auto;
   }
 
-  .nav {
+  .header-left {
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .nav-main {
     flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .nav-item {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .lang-switcher {
+    margin-right: 8px;
+  }
+
+  .user-name {
+    max-width: 100px;
+  }
+
+  .main-hero {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: 40px 24px;
+  }
+
+  .hero-title {
+    font-size: 36px;
+  }
+
+  .hero-content p {
+    font-size: 14px;
+  }
+
+  .stats-box {
+    padding: 24px;
+  }
+
+  .stat-value {
+    font-size: 24px;
   }
 
   .hero h1 {
@@ -432,6 +757,28 @@ section {
 
   .form {
     padding: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-text {
+    font-size: 16px;
+  }
+
+  .logo-square {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .nav-item {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .btn-primary {
+    padding: 8px 16px;
+    font-size: 14px;
   }
 }
 

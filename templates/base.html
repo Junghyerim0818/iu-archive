@@ -8,21 +8,41 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">IU Archive</div>
-    <nav class="nav">
-      <a href="{{ url_for('home') }}">홈</a>
-      <a href="{{ url_for('archive') }}">아카이브</a>
-      {% if user %}
-        <a href="{{ url_for('upload') }}">업로드</a>
-        <a href="{{ url_for('profile') }}">내 정보</a>
-        {% if user.is_admin %}
-          <a href="{{ url_for('admin_pending') }}">관리 승인</a>
+    <div class="header-left">
+      <div class="brand-logo">
+        <div class="logo-square">IU</div>
+        <span class="brand-text">IU Archive</span>
+      </div>
+      <nav class="nav-main">
+        <a href="{{ url_for('home') }}" class="nav-item">홈</a>
+        <a href="{{ url_for('archive') }}" class="nav-item">아카이브</a>
+        {% if user %}
+          <a href="{{ url_for('upload') }}" class="nav-item">업로드</a>
+          <a href="{{ url_for('profile') }}" class="nav-item">내 정보</a>
+          {% if user.is_admin %}
+            <a href="{{ url_for('admin_pending') }}" class="nav-item">관리 승인</a>
+          {% endif %}
         {% endif %}
-        <a href="{{ url_for('logout') }}">로그아웃</a>
+      </nav>
+    </div>
+    <div class="header-right">
+      <div class="lang-switcher">
+        <button class="lang-btn active" data-lang="ko">KOR</button>
+        <button class="lang-btn" data-lang="en">ENG</button>
+      </div>
+      {% if user %}
+        <div class="user-menu">
+          {% if user.picture %}
+            <img src="{{ user.picture }}" alt="프로필" class="user-avatar">
+          {% endif %}
+          <span class="user-name">{{ user.name or user.email }}</span>
+          <a href="{{ url_for('logout') }}" class="btn-logout">로그아웃</a>
+        </div>
       {% else %}
-        <a href="{{ url_for('login') }}">구글 로그인</a>
+        <a href="{{ url_for('login') }}" class="btn-login">로그인</a>
+        <a href="{{ url_for('login') }}" class="btn-primary">시작하기</a>
       {% endif %}
-    </nav>
+    </div>
   </header>
 
   {% with messages = get_flashed_messages() %}
@@ -45,6 +65,39 @@
       IU Archive © 2025
     </p>
   </footer>
+
+  <script>
+    // 한영 변환 기능
+    document.addEventListener('DOMContentLoaded', function() {
+      const langButtons = document.querySelectorAll('.lang-btn');
+      const currentLang = localStorage.getItem('lang') || 'ko';
+      
+      // 저장된 언어로 버튼 상태 설정
+      langButtons.forEach(btn => {
+        if (btn.dataset.lang === currentLang) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+      
+      // 언어 버튼 클릭 이벤트
+      langButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+          const lang = this.dataset.lang;
+          localStorage.setItem('lang', lang);
+          
+          // 버튼 상태 업데이트
+          langButtons.forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          
+          // 실제 번역 기능은 여기에 추가 가능
+          // 현재는 언어 선택만 저장
+          console.log('Language changed to:', lang);
+        });
+      });
+    });
+  </script>
 </body>
 </html>
 

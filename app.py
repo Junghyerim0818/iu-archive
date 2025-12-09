@@ -167,6 +167,14 @@ class Photo(db.Model):
     user = db.relationship("User", backref="photos")
 
 
+class Visitor(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    ip_address = db.Column(db.String(45))  # IPv6 지원
+    session_id = db.Column(db.String(255))
+    visited_at = db.Column(db.DateTime, default=datetime.utcnow)
+    visited_date = db.Column(db.Date, default=date.today)
+
+
 def current_user() -> Optional[User]:
     uid = session.get("user_id")
     if not uid:
@@ -215,13 +223,56 @@ def ensure_upload_folder() -> Path:
 
 @app.route("/")
 def home():
+    # 방문자 기록 (중복 방지: 같은 세션에서는 하루에 한 번만 기록)
+    session_id = session.get("_id", session.get("session_id"))
+    if not session_id:
+        import secrets
+        session_id = secrets.token_hex(16)
+        session["_id"] = session_id
+    
+    ip_address = request.remote_addr or request.environ.get("HTTP_X_FORWARDED_FOR", "").split(",")[0]
+    today = date.today()
+    
+    # 오늘 이미 방문한 세션이 아니면 기록
+    existing_visit = Visitor.query.filter_by(
+        session_id=session_id,
+        visited_date=today
+    ).first()
+    
+    if not existing_visit:
+        visitor = Visitor(
+            ip_address=ip_address,
+            session_id=session_id,
+            visited_date=today
+        )
+        db.session.add(visitor)
+        db.session.commit()
+    
     approved_recent = (
         Photo.query.filter_by(status="approved")
         .order_by(Photo.created_at.desc())
         .limit(12)
         .all()
     )
-    return render_template("home.html", photos=approved_recent, user=current_user())
+    
+    # 통계 데이터
+    total_photos = Photo.query.count()
+    approved_photos = Photo.query.filter_by(status="approved").count()
+    pending_photos = Photo.query.filter_by(status="pending").count()
+    
+    # 방문자 통계
+    total_visitors = Visitor.query.count()
+    today_visitors = Visitor.query.filter_by(visited_date=today).count()
+    
+    stats = {
+        "total_photos": total_photos,
+        "approved_photos": approved_photos,
+        "pending_photos": pending_photos,
+        "total_visitors": total_visitors,
+        "today_visitors": today_visitors,
+    }
+    
+    return render_template("home.html", photos=approved_recent, user=current_user(), stats=stats)
 
 
 @app.route("/archive")
