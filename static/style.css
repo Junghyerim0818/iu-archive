@@ -53,11 +53,14 @@ body::before {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 1000;
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05);
   min-height: 64px;
+  max-width: 800px;
+  border-radius: 3rem;
+  margin: 2rem;
+  top: 2rem;
 }
 
 .header-left {
@@ -74,28 +77,10 @@ body::before {
   text-decoration: none;
 }
 
-.logo-square {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 16px;
-  box-shadow: 0 4px 12px rgba(107, 182, 255, 0.3);
-}
-
 .brand-text {
   font-weight: 700;
   font-size: 18px;
   color: #111;
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .nav-main {
@@ -134,10 +119,6 @@ body::before {
   padding: 10px 20px;
   border-radius: 8px;
   transition: all 0.2s ease;
-}
-
-.btn-login:hover {
-  background: rgba(0, 0, 0, 0.05);
 }
 
 .btn-primary {
@@ -197,9 +178,8 @@ body::before {
 /* 한영 변환 버튼 */
 .lang-switcher {
   display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin-right: 16px;
+  flex-direction: row;
+  gap: 1rem;
 }
 
 .lang-btn {
@@ -216,16 +196,6 @@ body::before {
 
 .lang-btn.active {
   color: #e00;
-}
-
-.lang-btn:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: #e00;
 }
 
 .lang-btn:hover {
