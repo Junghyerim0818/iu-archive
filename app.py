@@ -17,6 +17,7 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import NullPool
+from sqlalchemy import inspect, text
 from werkzeug.utils import secure_filename
 import boto3
 from botocore.client import Config
@@ -63,23 +64,85 @@ if app.config["STORAGE_BACKEND"] == "s3":
     )
 
 
-def ensure_sqlite_schema():
-    """SQLite 사용 시 스키마를 보장 (서버리스는 /tmp 사용)."""
+def ensure_schema():
+    """
+    DB 스키마 보장.
+    - SQLite: 경로 생성 후 create_all
+    - 그 외(Postgres/Neon 등): create_all만 수행
+    """
     uri = app.config["SQLALCHEMY_DATABASE_URI"]
-    if not uri.startswith("sqlite:"):
-        return
-    db_path = Path(uri.replace("sqlite:///", ""))
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    db.create_all()
-
-
-# AUTO_DDL=0 이 아니면 앱 로드 시 SQLite 스키마를 자동 생성 (서버리스 포함)
-if os.getenv("AUTO_DDL", "1") == "1":
+    if uri.startswith("sqlite:"):
+        db_path = Path(uri.replace("sqlite:///", ""))
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+    
     try:
-        with app.app_context():
-            ensure_sqlite_schema()
+        app.logger.info("스키마 생성 시작... (DB: %s)", "PostgreSQL" if uri.startswith("postgres") else "SQLite")
+        db.create_all()
+        app.logger.info("스키마 생성 완료")
     except Exception as exc:
-        app.logger.warning("자동 스키마 생성 실패: %s", exc)
+        app.logger.error("스키마 생성 실패: %s", exc, exc_info=True)
+        raise
+
+
+# 스키마 초기화 플래그 (한 번만 실행)
+_schema_initialized = False
+
+
+def check_tables_exist():
+    """필수 테이블(User, Photo)이 존재하는지 확인 - 실제 쿼리로 확인"""
+    try:
+        # 간단한 쿼리로 테이블 존재 확인
+        db.session.execute(text('SELECT 1 FROM "user" LIMIT 1'))
+        db.session.execute(text("SELECT 1 FROM photo LIMIT 1"))
+        db.session.rollback()  # 쿼리만 확인하고 롤백
+        return True
+    except Exception as exc:
+        db.session.rollback()
+        # 테이블이 없으면 ProgrammingError 또는 OperationalError 발생
+        return False
+
+
+@app.before_request
+def ensure_schema_before_request():
+    """모든 요청 전에 스키마가 존재하는지 확인하고 없으면 생성"""
+    global _schema_initialized
+    
+    # AUTO_DDL=0이면 스키마 생성을 건너뜀
+    if os.getenv("AUTO_DDL", "1") == "0":
+        if not _schema_initialized:
+            _schema_initialized = True
+        return
+    
+    # 이미 초기화되었고 테이블이 존재하면 건너뜀
+    if _schema_initialized:
+        try:
+            if check_tables_exist():
+                return
+            else:
+                # 테이블이 없으면 다시 초기화 시도
+                app.logger.warning("테이블이 없어 재초기화 시도")
+                _schema_initialized = False
+        except Exception:
+            pass
+    
+    try:
+        # 테이블이 이미 존재하는지 확인
+        if not check_tables_exist():
+            app.logger.info("테이블이 없어 스키마 생성 시작...")
+            ensure_schema()
+            # 생성 후 다시 확인
+            if check_tables_exist():
+                app.logger.info("DB 스키마가 성공적으로 생성되었습니다.")
+                _schema_initialized = True
+            else:
+                app.logger.error("스키마 생성 후에도 테이블이 없습니다.")
+                _schema_initialized = False  # 재시도 가능하도록
+        else:
+            app.logger.debug("테이블이 이미 존재합니다.")
+            _schema_initialized = True
+    except Exception as exc:
+        app.logger.error("요청 전 스키마 생성 실패: %s", exc, exc_info=True)
+        _schema_initialized = False  # 실패 시 재시도 가능하도록
 
 
 class User(db.Model):
@@ -370,6 +433,6 @@ def logout():
 
 if __name__ == "__main__":
     with app.app_context():
-        ensure_sqlite_schema()
+        ensure_schema()
     app.run(host="0.0.0.0", port=8000, debug=True)
 
