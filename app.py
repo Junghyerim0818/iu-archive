@@ -89,11 +89,12 @@ _schema_initialized = False
 
 
 def check_tables_exist():
-    """필수 테이블(User, Photo)이 존재하는지 확인 - 실제 쿼리로 확인"""
+    """필수 테이블(User, Photo, Visitor)이 존재하는지 확인 - 실제 쿼리로 확인"""
     try:
         # 간단한 쿼리로 테이블 존재 확인
         db.session.execute(text('SELECT 1 FROM "user" LIMIT 1'))
         db.session.execute(text("SELECT 1 FROM photo LIMIT 1"))
+        db.session.execute(text("SELECT 1 FROM visitor LIMIT 1"))
         db.session.rollback()  # 쿼리만 확인하고 롤백
         return True
     except Exception as exc:
@@ -233,20 +234,30 @@ def home():
     ip_address = request.remote_addr or request.environ.get("HTTP_X_FORWARDED_FOR", "").split(",")[0]
     today = date.today()
     
-    # 오늘 이미 방문한 세션이 아니면 기록
-    existing_visit = Visitor.query.filter_by(
-        session_id=session_id,
-        visited_date=today
-    ).first()
-    
-    if not existing_visit:
-        visitor = Visitor(
-            ip_address=ip_address,
+    # 방문자 기록 시도 (테이블이 없을 수 있으므로 예외 처리)
+    try:
+        # 오늘 이미 방문한 세션이 아니면 기록
+        existing_visit = Visitor.query.filter_by(
             session_id=session_id,
             visited_date=today
-        )
-        db.session.add(visitor)
-        db.session.commit()
+        ).first()
+        
+        if not existing_visit:
+            visitor = Visitor(
+                ip_address=ip_address,
+                session_id=session_id,
+                visited_date=today
+            )
+            db.session.add(visitor)
+            db.session.commit()
+    except Exception as exc:
+        # visitor 테이블이 없거나 다른 오류 발생 시 스키마 생성 시도
+        app.logger.warning("방문자 기록 실패, 스키마 확인: %s", exc)
+        try:
+            db.create_all()
+        except Exception:
+            pass
+        db.session.rollback()
     
     approved_recent = (
         Photo.query.filter_by(status="approved")
@@ -260,9 +271,13 @@ def home():
     approved_photos = Photo.query.filter_by(status="approved").count()
     pending_photos = Photo.query.filter_by(status="pending").count()
     
-    # 방문자 통계
-    total_visitors = Visitor.query.count()
-    today_visitors = Visitor.query.filter_by(visited_date=today).count()
+    # 방문자 통계 (테이블이 없을 수 있으므로 예외 처리)
+    try:
+        total_visitors = Visitor.query.count()
+        today_visitors = Visitor.query.filter_by(visited_date=today).count()
+    except Exception:
+        total_visitors = 0
+        today_visitors = 0
     
     stats = {
         "total_photos": total_photos,
