@@ -298,13 +298,24 @@ def archive():
         .all()
     )
 
-    grouped = {}
+    # 년도 > 월 > 일 계층 구조로 그룹화
+    years_dict = {}
     for photo in approved:
-        key = f"{photo.taken_date} | {photo.event_name or '기타'}"
-        grouped.setdefault(key, []).append(photo)
+        year = photo.taken_date.year
+        month = photo.taken_date.month
+        day = photo.taken_date.day
+        
+        if year not in years_dict:
+            years_dict[year] = {}
+        if month not in years_dict[year]:
+            years_dict[year][month] = {}
+        if day not in years_dict[year][month]:
+            years_dict[year][month][day] = []
+        
+        years_dict[year][month][day].append(photo)
 
     return render_template(
-        "archive.html", grouped=grouped, user=current_user(), upload_root="files"
+        "archive.html", years_dict=years_dict, user=current_user()
     )
 
 

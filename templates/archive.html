@@ -1,27 +1,78 @@
 {% extends "base.html" %}
-{% block current_path %}아카이브{% endblock %}
 {% block content %}
-{% if grouped %}
-  {% for key, photos in grouped.items() %}
-    <div style="padding: 16px; border-bottom: 1px solid var(--border-gray);">
-      <h2 style="font-size: 16px; font-weight: 600; margin: 0 0 16px 0; color: var(--text-dark);">
-        <span class="folder-icon" style="margin-right: 8px;"></span>
-        {{ key }}
-      </h2>
-      <div class="file-grid">
-        {% for photo in photos %}
-          <div class="file-item">
-            <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" class="file-icon" loading="lazy">
-            <span class="file-name">{{ photo.taken_date }}<br>{{ photo.event_name or '기타' }}</span>
+<div class="archive-container">
+  {% if years_dict %}
+    {% for year, months in years_dict.items()|sort(reverse=True) %}
+      <div class="date-accordion">
+        <div class="year-item" data-year="{{ year }}">
+          <div class="year-header" onclick="toggleYear({{ year }})">
+            <span class="year-title">{{ year }}년</span>
+            <span class="expand-icon">▶</span>
           </div>
-        {% endfor %}
+          <div class="year-content">
+            <div class="month-list">
+              {% for month, days in months.items()|sort(reverse=True) %}
+                <div class="month-item" data-month="{{ year }}-{{ month }}">
+                  <div class="month-header" onclick="toggleMonth({{ year }}, {{ month }})">
+                    <span class="month-title">{{ month }}월</span>
+                    <span class="expand-icon">▶</span>
+                  </div>
+                  <div class="month-content">
+                    <div class="day-list">
+                      {% for day, photos in days.items()|sort(reverse=True) %}
+                        <div class="day-item">
+                          <div class="day-header" onclick="toggleDay({{ year }}, {{ month }}, {{ day }})">
+                            <span class="day-title">{{ day }}일 ({{ photos|length }}개)</span>
+                            <span class="expand-icon">▶</span>
+                          </div>
+                          <div class="day-content" style="display: none;">
+                            {% for photo in photos %}
+                              <div class="photo-item">
+                                <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
+                                <div class="photo-info">
+                                  {{ photo.event_name or '기타' }}
+                                </div>
+                              </div>
+                            {% endfor %}
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
       </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <p>아직 승인된 사진이 없습니다.</p>
     </div>
-  {% endfor %}
-{% else %}
-  <div class="empty-state" style="padding: 60px 20px; text-align: center;">
-    <p>아직 승인된 사진이 없습니다.</p>
-  </div>
-{% endif %}
-{% endblock %}
+  {% endif %}
+</div>
 
+<script>
+function toggleYear(year) {
+  const yearItem = document.querySelector(`[data-year="${year}"]`);
+  yearItem.classList.toggle('expanded');
+}
+
+function toggleMonth(year, month) {
+  const monthItem = document.querySelector(`[data-month="${year}-${month}"]`);
+  monthItem.classList.toggle('expanded');
+}
+
+function toggleDay(year, month, day) {
+  const dayContent = event.currentTarget.nextElementSibling;
+  if (dayContent.style.display === 'none') {
+    dayContent.style.display = 'grid';
+    event.currentTarget.parentElement.classList.add('expanded');
+  } else {
+    dayContent.style.display = 'none';
+    event.currentTarget.parentElement.classList.remove('expanded');
+  }
+}
+</script>
+{% endblock %}

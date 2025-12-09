@@ -7,41 +7,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <header class="topbar">
-    <div class="header-left">
-      <div class="brand-logo">
-        <span class="brand-text">IU Archive</span>
-      </div>
-      <nav class="nav-main">
-        <a href="{{ url_for('home') }}" class="nav-item">홈</a>
-        <a href="{{ url_for('archive') }}" class="nav-item">아카이브</a>
-        {% if user %}
-          <a href="{{ url_for('upload') }}" class="nav-item">업로드</a>
-          <a href="{{ url_for('profile') }}" class="nav-item">내 정보</a>
-          {% if user.is_admin %}
-            <a href="{{ url_for('admin_pending') }}" class="nav-item">관리 승인</a>
-          {% endif %}
-        {% endif %}
-      </nav>
+  {% if request.endpoint == 'home' %}
+    <div class="iu-3d-container">
+      <div class="iu-3d">IU</div>
     </div>
-    <div class="header-right">
-      <div class="lang-switcher">
-        <button class="lang-btn active" data-lang="ko">KOR</button>
-        <button class="lang-btn" data-lang="en">ENG</button>
-      </div>
-      {% if user %}
-        <div class="user-menu">
-          {% if user.picture %}
-            <img src="{{ user.picture }}" alt="프로필" class="user-avatar">
-          {% endif %}
-          <span class="user-name">{{ user.name or user.email }}</span>
-          <a href="{{ url_for('logout') }}" class="btn-logout">로그아웃</a>
-        </div>
-      {% else %}
-        <a href="{{ url_for('login') }}" class="btn-primary">시작하기</a>
-      {% endif %}
-    </div>
-  </header>
+  {% endif %}
 
   {% with messages = get_flashed_messages() %}
     {% if messages %}
@@ -53,59 +23,24 @@
     {% endif %}
   {% endwith %}
 
-  <div class="file-explorer">
-    <aside class="folder-sidebar">
-      <ul class="folder-tree">
-        <li class="folder-item active">
-          <span class="folder-icon"></span>
-          <span>홈</span>
-        </li>
-        <li class="folder-item">
-          <span class="folder-icon"></span>
-          <a href="{{ url_for('archive') }}" style="text-decoration: none; color: inherit;">아카이브</a>
-        </li>
-        {% if user %}
-          <li class="folder-item">
-            <span class="folder-icon"></span>
-            <a href="{{ url_for('upload') }}" style="text-decoration: none; color: inherit;">업로드</a>
-          </li>
-          <li class="folder-item">
-            <span class="folder-icon"></span>
-            <a href="{{ url_for('profile') }}" style="text-decoration: none; color: inherit;">내 정보</a>
-          </li>
-          {% if user.is_admin %}
-            <li class="folder-item">
-              <span class="folder-icon"></span>
-              <a href="{{ url_for('admin_pending') }}" style="text-decoration: none; color: inherit;">관리 승인</a>
-            </li>
-          {% endif %}
-        {% endif %}
-      </ul>
-    </aside>
-    
-    <div class="explorer-toolbar">
-      <button class="toolbar-btn">←</button>
-      <button class="toolbar-btn">→</button>
-      <button class="toolbar-btn">↑</button>
-      <div class="breadcrumb">
-        <a href="{{ url_for('home') }}" class="breadcrumb-item">IU Archive</a>
-        <span class="breadcrumb-separator">/</span>
-        <span class="breadcrumb-item">{% block current_path %}홈{% endblock %}</span>
-      </div>
-      <button class="toolbar-btn">보기</button>
-    </div>
-    
-    <main class="container">
-      {% block content %}{% endblock %}
-    </main>
-  </div>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
 
-  <footer class="footer">
-    <span>팬이 만드는 아이유 사진 아카이브</span>
-    <p style="margin-top: 8px; font-size: 12px; color: #999;">
-      IU Archive © 2025
-    </p>
-  </footer>
+  <nav class="floating-menu">
+    <a href="{{ url_for('home') }}" class="menu-item">홈</a>
+    <a href="{{ url_for('archive') }}" class="menu-item">아카이브</a>
+    {% if user %}
+      <a href="{{ url_for('upload') }}" class="menu-item">업로드</a>
+      <a href="{{ url_for('profile') }}" class="menu-item">내 정보</a>
+      {% if user.is_admin %}
+        <a href="{{ url_for('admin_pending') }}" class="menu-item">관리 승인</a>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="menu-item">로그아웃</a>
+    {% else %}
+      <a href="{{ url_for('login') }}" class="menu-item">로그인</a>
+    {% endif %}
+  </nav>
 
   <script>
     // 한영 변환 기능
