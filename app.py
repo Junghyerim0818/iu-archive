@@ -217,8 +217,18 @@ oauth.register(
 
 
 def ensure_upload_folder() -> Path:
+    """로컬 스토리지를 사용할 때만 폴더를 생성합니다."""
+    if app.config["STORAGE_BACKEND"] == "s3":
+        # S3를 사용할 때는 임시 경로만 반환 (실제로는 사용되지 않음)
+        return Path("/tmp/uploads")
+    
     upload_root = Path(app.config["UPLOAD_FOLDER"])
-    upload_root.mkdir(parents=True, exist_ok=True)
+    try:
+        upload_root.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        # 읽기 전용 파일 시스템인 경우 /tmp 사용
+        upload_root = Path("/tmp/uploads")
+        upload_root.mkdir(parents=True, exist_ok=True)
     return upload_root
 
 
@@ -342,17 +352,24 @@ def upload():
     ).all()
     
     today_count = len(today_photos)
-    # Photo 모델에 file_size가 없으므로, 파일 시스템에서 크기 확인
+    # 오늘 업로드한 파일의 총 크기 계산
     today_total_size = 0
     if not user.is_admin:
-        upload_root = ensure_upload_folder()
-        for photo in today_photos:
-            try:
-                photo_path = upload_root / photo.relative_path
-                if photo_path.exists():
-                    today_total_size += photo_path.stat().st_size
-            except Exception:
-                pass
+        if app.config["STORAGE_BACKEND"] == "s3":
+            # S3를 사용할 때는 데이터베이스의 file_size 컬럼 사용
+            for photo in today_photos:
+                if hasattr(photo, 'file_size') and photo.file_size:
+                    today_total_size += photo.file_size
+        else:
+            # 로컬 스토리지를 사용할 때는 파일 시스템에서 크기 확인
+            upload_root = ensure_upload_folder()
+            for photo in today_photos:
+                try:
+                    photo_path = upload_root / photo.relative_path
+                    if photo_path.exists():
+                        today_total_size += photo_path.stat().st_size
+                except Exception:
+                    pass
     
     # 제한 설정
     MAX_FILES_PER_DAY = 20
@@ -398,11 +415,7 @@ def upload():
             flash("파일 이름이 올바르지 않습니다.", "error")
             return redirect(url_for("upload"))
 
-        upload_root = ensure_upload_folder()
         folder_name = f"{taken_date_value}_{event_name.replace(' ', '_')}"
-        target_dir = upload_root / folder_name
-        target_dir.mkdir(parents=True, exist_ok=True)
-
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
         relative_path = Path(folder_name) / f"{timestamp}_{safe_name}"
 
@@ -416,16 +429,24 @@ def upload():
                 ExtraArgs={"ContentType": file.mimetype or "application/octet-stream"},
             )
         else:
+            upload_root = ensure_upload_folder()
+            target_dir = upload_root / folder_name
+            target_dir.mkdir(parents=True, exist_ok=True)
             file.save(target_dir / relative_path.name)
 
-        photo = Photo(
-            user_id=user.id,
-            relative_path=str(relative_path).replace("\\", "/"),
-            original_name=file.filename,
-            event_name=event_name,
-            taken_date=taken_date_value,
-            status="pending",
-        )
+        photo_data = {
+            "user_id": user.id,
+            "relative_path": str(relative_path).replace("\\", "/"),
+            "original_name": file.filename,
+            "event_name": event_name,
+            "taken_date": taken_date_value,
+            "status": "pending",
+        }
+        # file_size 컬럼이 있으면 추가
+        if hasattr(Photo, 'file_size'):
+            photo_data["file_size"] = file_size
+        
+        photo = Photo(**photo_data)
         db.session.add(photo)
         db.session.commit()
 

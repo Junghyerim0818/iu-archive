@@ -73,17 +73,51 @@
     // 마우스 따라다니는 커서
     (function() {
       const cursor = document.querySelector('.custom-cursor');
+      if (!cursor) return;
+      
       let mouseX = 0;
       let mouseY = 0;
       let cursorX = 0;
       let cursorY = 0;
-      let isMoving = false;
+      let isVisible = false;
+
+      // 마우스가 창 안에 있는지 확인
+      function isMouseInWindow(e) {
+        return e.clientX >= 0 && e.clientY >= 0 && 
+               e.clientX <= window.innerWidth && 
+               e.clientY <= window.innerHeight;
+      }
 
       // 마우스 위치 추적
       document.addEventListener('mousemove', (e) => {
         mouseX = e.clientX;
         mouseY = e.clientY;
-        isMoving = true;
+        
+        // 창 안에 있으면 커서 표시
+        if (isMouseInWindow(e)) {
+          if (!isVisible) {
+            cursor.classList.add('visible');
+            isVisible = true;
+          }
+        } else {
+          // 창 밖으로 나갔으면 커서 숨기기
+          if (isVisible) {
+            cursor.classList.remove('visible');
+            isVisible = false;
+          }
+        }
+      });
+
+      // 마우스가 창 밖으로 나갔을 때 (body에서)
+      document.body.addEventListener('mouseleave', () => {
+        cursor.classList.remove('visible');
+        isVisible = false;
+      });
+
+      // 마우스가 창 안으로 들어왔을 때 (body에서)
+      document.body.addEventListener('mouseenter', () => {
+        cursor.classList.add('visible');
+        isVisible = true;
       });
 
       // 호버 효과
