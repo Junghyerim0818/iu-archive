@@ -248,7 +248,7 @@ h1.iu {
 }
 
 .month-list, .day-list {
-  padding-left: 20px;
+  padding: 20px;
 }
 
 .day-content {
@@ -996,6 +996,7 @@ h1.iu {
 
   .container {
     padding: 20px;
+    margin-top: 5rem;
   }
 
   .day-content {
