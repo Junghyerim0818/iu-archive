@@ -1,26 +1,25 @@
 {% extends "base.html" %}
+{% block current_path %}아카이브{% endblock %}
 {% block content %}
-<section>
-  <h1>아카이브</h1>
-  <p>날짜별, 행사별로 정리된 아이유 사진 모음</p>
-</section>
-
 {% if grouped %}
   {% for key, photos in grouped.items() %}
-    <section>
-      <h2>{{ key }}</h2>
-      <div class="grid">
+    <div style="padding: 16px; border-bottom: 1px solid var(--border-gray);">
+      <h2 style="font-size: 16px; font-weight: 600; margin: 0 0 16px 0; color: var(--text-dark);">
+        <span class="folder-icon" style="margin-right: 8px;"></span>
+        {{ key }}
+      </h2>
+      <div class="file-grid">
         {% for photo in photos %}
-          <figure class="card">
-            <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
-            <figcaption>{{ photo.taken_date }} · {{ photo.event_name or '기타' }}</figcaption>
-          </figure>
+          <div class="file-item">
+            <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" class="file-icon" loading="lazy">
+            <span class="file-name">{{ photo.taken_date }}<br>{{ photo.event_name or '기타' }}</span>
+          </div>
         {% endfor %}
       </div>
-    </section>
+    </div>
   {% endfor %}
 {% else %}
-  <div class="empty-state">
+  <div class="empty-state" style="padding: 60px 20px; text-align: center;">
     <p>아직 승인된 사진이 없습니다.</p>
   </div>
 {% endif %}

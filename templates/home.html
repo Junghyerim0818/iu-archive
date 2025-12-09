@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block current_path %}홈{% endblock %}
 {% block content %}
 <div class="main-hero">
   <div class="hero-left">
@@ -49,22 +50,22 @@
   </div>
 </div>
 
-<section class="recent-section">
-  <h2>최근 승인된 사진</h2>
+<div style="padding: 24px;">
+  <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 24px 0; color: var(--text-dark);">최근 승인된 사진</h2>
   {% if photos %}
-    <div class="grid">
+    <div class="file-grid">
       {% for photo in photos %}
-        <figure class="card">
-          <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
-          <figcaption>{{ photo.taken_date }} · {{ photo.event_name or '기타' }}</figcaption>
-        </figure>
+        <div class="file-item">
+          <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" class="file-icon" loading="lazy">
+          <span class="file-name">{{ photo.taken_date }}<br>{{ photo.event_name or '기타' }}</span>
+        </div>
       {% endfor %}
     </div>
   {% else %}
-    <div class="empty-state">
+    <div class="empty-state" style="padding: 60px 20px; text-align: center;">
       <p>아직 승인된 사진이 없습니다.<br>첫 번째 사진을 업로드해보세요!</p>
     </div>
   {% endif %}
-</section>
+</div>
 {% endblock %}
 

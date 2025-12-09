@@ -53,9 +53,52 @@
     {% endif %}
   {% endwith %}
 
-  <main class="container">
-    {% block content %}{% endblock %}
-  </main>
+  <div class="file-explorer">
+    <aside class="folder-sidebar">
+      <ul class="folder-tree">
+        <li class="folder-item active">
+          <span class="folder-icon"></span>
+          <span>홈</span>
+        </li>
+        <li class="folder-item">
+          <span class="folder-icon"></span>
+          <a href="{{ url_for('archive') }}" style="text-decoration: none; color: inherit;">아카이브</a>
+        </li>
+        {% if user %}
+          <li class="folder-item">
+            <span class="folder-icon"></span>
+            <a href="{{ url_for('upload') }}" style="text-decoration: none; color: inherit;">업로드</a>
+          </li>
+          <li class="folder-item">
+            <span class="folder-icon"></span>
+            <a href="{{ url_for('profile') }}" style="text-decoration: none; color: inherit;">내 정보</a>
+          </li>
+          {% if user.is_admin %}
+            <li class="folder-item">
+              <span class="folder-icon"></span>
+              <a href="{{ url_for('admin_pending') }}" style="text-decoration: none; color: inherit;">관리 승인</a>
+            </li>
+          {% endif %}
+        {% endif %}
+      </ul>
+    </aside>
+    
+    <div class="explorer-toolbar">
+      <button class="toolbar-btn">←</button>
+      <button class="toolbar-btn">→</button>
+      <button class="toolbar-btn">↑</button>
+      <div class="breadcrumb">
+        <a href="{{ url_for('home') }}" class="breadcrumb-item">IU Archive</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-item">{% block current_path %}홈{% endblock %}</span>
+      </div>
+      <button class="toolbar-btn">보기</button>
+    </div>
+    
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
 
   <footer class="footer">
     <span>팬이 만드는 아이유 사진 아카이브</span>
