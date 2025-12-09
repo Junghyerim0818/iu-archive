@@ -1,40 +1,84 @@
 {% extends "base.html" %}
 {% block content %}
-<section>
-  <h1>내 정보</h1>
-  <div class="profile">
-    {% if user.picture %}<img src="{{ user.picture }}" alt="avatar">{% endif %}
-    <div>
-      <p style="font-size: 24px; font-weight: 600; margin-bottom: 8px; color: #fff;">
-        {{ user.name or user.email }}
-      </p>
-      <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 8px;">{{ user.email }}</p>
-      <span class="badge {{ 'approved' if user.is_admin else 'pending' }}">
+<div class="profile-container">
+  <div class="profile-header">
+    <h1>내 정보</h1>
+  </div>
+
+  <div class="profile-card">
+    <div class="profile-avatar-section">
+      {% if user.picture %}
+        <img src="{{ user.picture }}" alt="프로필" class="profile-avatar">
+      {% else %}
+        <div class="profile-avatar-placeholder">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+      {% endif %}
+      <div class="profile-badge {{ 'admin' if user.is_admin else 'user' }}">
         {{ '관리자' if user.is_admin else '일반 사용자' }}
-      </span>
+      </div>
+    </div>
+
+    <div class="profile-info">
+      <div class="info-item">
+        <span class="info-label">이름</span>
+        <span class="info-value">{{ user.name or '미설정' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">이메일</span>
+        <span class="info-value">{{ user.email }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">가입일</span>
+        <span class="info-value">{{ user.created_at.strftime('%Y년 %m월 %d일') if user.created_at else '알 수 없음' }}</span>
+      </div>
     </div>
   </div>
-</section>
 
-<section>
-  <h2>최근 업로드</h2>
-  {% if photos %}
-    <ul class="list">
-      {% for photo in photos %}
-        <li>
-          <div style="display: flex; flex-direction: column; gap: 4px;">
-            <span style="color: #fff; font-weight: 500;">{{ photo.taken_date }} · {{ photo.event_name or '기타' }}</span>
-            <span class="small">{{ photo.original_name }}</span>
+  <div class="upload-history-section">
+    <h2>업로드 기록</h2>
+    {% if photos %}
+      <div class="photo-list">
+        {% for photo in photos %}
+          <div class="photo-list-item">
+            <div class="photo-thumbnail">
+              <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
+            </div>
+            <div class="photo-details">
+              <div class="photo-title">{{ photo.event_name or '기타' }}</div>
+              <div class="photo-meta">
+                <span>{{ photo.taken_date }}</span>
+                <span>•</span>
+                <span>{{ photo.original_name }}</span>
+              </div>
+            </div>
+            <div class="photo-status">
+              <span class="status-badge {{ photo.status }}">
+                {% if photo.status == 'approved' %}
+                  승인됨
+                {% elif photo.status == 'pending' %}
+                  대기중
+                {% else %}
+                  거절됨
+                {% endif %}
+              </span>
+            </div>
           </div>
-          <span class="badge {{ photo.status }}">{{ '승인됨' if photo.status == 'approved' else '대기중' if photo.status == 'pending' else '거절됨' }}</span>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <div class="empty-state">
-      <p>업로드 기록이 없습니다.</p>
-    </div>
-  {% endif %}
-</section>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="9" y1="3" x2="9" y2="21"></line>
+        </svg>
+        <p>업로드 기록이 없습니다.</p>
+        <a href="{{ url_for('upload') }}" class="empty-action-btn">첫 사진 업로드하기</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}
-

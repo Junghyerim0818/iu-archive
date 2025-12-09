@@ -187,7 +187,7 @@ def login_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         if not current_user():
-            flash("로그인이 필요합니다.")
+            flash("로그인이 필요합니다.", "warning")
             return redirect(url_for("home"))
         return fn(*args, **kwargs)
 
@@ -199,7 +199,7 @@ def admin_required(fn):
     def wrapper(*args, **kwargs):
         user = current_user()
         if not user or not user.is_admin:
-            flash("관리자만 접근 가능합니다.")
+            flash("관리자만 접근 가능합니다.", "error")
             return redirect(url_for("home"))
         return fn(*args, **kwargs)
 
@@ -333,35 +333,69 @@ def files(filename):
 @login_required
 def upload():
     user = current_user()
-    today_count = (
-        Photo.query.filter(
-            Photo.user_id == user.id,
-            db.func.date(Photo.created_at) == date.today(),
-        ).count()
-    )
-    limit = app.config["DAILY_UPLOAD_LIMIT"]
-
+    today = date.today()
+    
+    # 오늘 업로드한 파일 개수와 총 크기 계산
+    today_photos = Photo.query.filter(
+        Photo.user_id == user.id,
+        db.func.date(Photo.created_at) == today,
+    ).all()
+    
+    today_count = len(today_photos)
+    # Photo 모델에 file_size가 없으므로, 파일 시스템에서 크기 확인
+    today_total_size = 0
+    if not user.is_admin:
+        upload_root = ensure_upload_folder()
+        for photo in today_photos:
+            try:
+                photo_path = upload_root / photo.relative_path
+                if photo_path.exists():
+                    today_total_size += photo_path.stat().st_size
+            except Exception:
+                pass
+    
+    # 제한 설정
+    MAX_FILES_PER_DAY = 20
+    MAX_SIZE_PER_DAY = 100 * 1024 * 1024  # 100MB
+    
     if request.method == "POST":
-        if today_count >= limit and not user.is_admin:
-            flash("오늘 업로드 한도에 도달했습니다. 내일 다시 시도해주세요.")
-            return redirect(url_for("upload"))
-
+        if not user.is_admin:
+            # 파일 개수 체크
+            if today_count >= MAX_FILES_PER_DAY:
+                flash(f"오늘 업로드 한도에 도달했습니다. (최대 {MAX_FILES_PER_DAY}장)", "error")
+                return redirect(url_for("upload"))
+        
         file = request.files.get("photo")
         event_name = request.form.get("event_name", "").strip() or "기타"
-        taken_date_str = request.form.get("taken_date") or str(date.today())
+        taken_date_str = request.form.get("taken_date") or str(today)
         try:
             taken_date_value = datetime.strptime(taken_date_str, "%Y-%m-%d").date()
         except ValueError:
-            flash("날짜 형식이 올바르지 않습니다.")
+            flash("날짜 형식이 올바르지 않습니다.", "error")
             return redirect(url_for("upload"))
 
         if not file or file.filename == "":
-            flash("파일을 선택해주세요.")
+            flash("파일을 선택해주세요.", "error")
             return redirect(url_for("upload"))
+        
+        # 파일 크기 체크
+        file.seek(0, 2)  # 파일 끝으로 이동
+        file_size = file.tell()
+        file.seek(0)  # 다시 시작으로
+        
+        if not user.is_admin:
+            if file_size > MAX_SIZE_PER_DAY:
+                flash(f"파일 크기가 너무 큽니다. (최대 100MB)", "error")
+                return redirect(url_for("upload"))
+            
+            if today_total_size + file_size > MAX_SIZE_PER_DAY:
+                remaining_mb = (MAX_SIZE_PER_DAY - today_total_size) / (1024 * 1024)
+                flash(f"오늘 업로드 용량 한도에 도달했습니다. (남은 용량: {remaining_mb:.1f}MB)", "error")
+                return redirect(url_for("upload"))
 
         safe_name = secure_filename(file.filename)
         if not safe_name:
-            flash("파일 이름이 올바르지 않습니다.")
+            flash("파일 이름이 올바르지 않습니다.", "error")
             return redirect(url_for("upload"))
 
         upload_root = ensure_upload_folder()
@@ -395,14 +429,26 @@ def upload():
         db.session.add(photo)
         db.session.commit()
 
-        flash("업로드가 접수되었습니다. 관리자의 승인 후 아카이브에 노출됩니다.")
-        return redirect(url_for("archive"))
+        flash("업로드가 접수되었습니다. 관리자의 승인 후 아카이브에 노출됩니다.", "success")
+        return redirect(url_for("upload"))
 
+    # 남은 용량 계산
+    MAX_FILES_PER_DAY = 20
+    MAX_SIZE_PER_DAY = 100 * 1024 * 1024  # 100MB
+    remaining_files = MAX_FILES_PER_DAY - today_count if not user.is_admin else "무제한"
+    remaining_size_mb = (MAX_SIZE_PER_DAY - today_total_size) / (1024 * 1024) if not user.is_admin else "무제한"
+    used_size_mb = today_total_size / (1024 * 1024)
+    
     return render_template(
         "upload.html",
         user=user,
         today_count=today_count,
-        limit=limit,
+        today_total_size=today_total_size,
+        used_size_mb=used_size_mb,
+        remaining_files=remaining_files,
+        remaining_size_mb=remaining_size_mb,
+        max_files=MAX_FILES_PER_DAY,
+        max_size_mb=100,
         today=date.today(),
     )
 
@@ -420,7 +466,7 @@ def admin_pending():
             elif action == "reject":
                 photo.status = "rejected"
             db.session.commit()
-            flash("처리되었습니다.")
+            flash("처리되었습니다.", "success")
         return redirect(url_for("admin_pending"))
 
     pending = Photo.query.filter_by(status="pending").order_by(Photo.created_at).all()
@@ -462,7 +508,9 @@ def inject_helpers():
 
 @app.route("/login")
 def login():
+    # 리디렉션 URI 명시적 설정
     redirect_uri = url_for("auth_callback", _external=True)
+    app.logger.info(f"OAuth redirect URI: {redirect_uri}")
     return oauth.google.authorize_redirect(redirect_uri)
 
 
@@ -471,7 +519,7 @@ def auth_callback():
     token = oauth.google.authorize_access_token()
     userinfo = token.get("userinfo")
     if not userinfo:
-        flash("구글 로그인에 실패했습니다.")
+        flash("구글 로그인에 실패했습니다.", "error")
         return redirect(url_for("home"))
 
     email = userinfo["email"]
@@ -497,14 +545,14 @@ def auth_callback():
     db.session.commit()
 
     session["user_id"] = user.id
-    flash("로그인되었습니다.")
+    flash("로그인되었습니다.", "success")
     return redirect(url_for("home"))
 
 
 @app.route("/logout")
 def logout():
     session.clear()
-    flash("로그아웃되었습니다.")
+    flash("로그아웃되었습니다.", "success")
     return redirect(url_for("home"))
 
 

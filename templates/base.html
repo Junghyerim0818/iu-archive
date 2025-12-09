@@ -6,20 +6,44 @@
   <title>IU Archive</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body {% if request.endpoint == 'home' %}class="home-page"{% endif %}>
   {% if request.endpoint == 'home' %}
     <div class="iu-3d-container">
-      <div class="iu-3d">IU</div>
+      <h1 class="iu-3d">IU</h1>
     </div>
   {% endif %}
 
-  {% with messages = get_flashed_messages() %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <ul class="flash">
-        {% for msg in messages %}
-          <li>{{ msg }}</li>
+        {% for category, msg in messages %}
+          <li class="{{ category or 'info' }}">
+            {% if category == 'success' %}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            {% elif category == 'error' %}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            {% endif %}
+            <span>{{ msg }}</span>
+          </li>
         {% endfor %}
       </ul>
+      <script>
+        // 5초 후 알림 자동 닫기
+        setTimeout(() => {
+          const flash = document.querySelector('.flash');
+          if (flash) {
+            flash.style.opacity = '0';
+            flash.style.transform = 'translateX(-50%) translateY(-20px)';
+            setTimeout(() => flash.remove(), 300);
+          }
+        }, 5000);
+      </script>
     {% endif %}
   {% endwith %}
 
@@ -28,13 +52,13 @@
   </main>
 
   <nav class="floating-menu">
-    <a href="{{ url_for('home') }}" class="menu-item">홈</a>
-    <a href="{{ url_for('archive') }}" class="menu-item">아카이브</a>
+    <a href="{{ url_for('home') }}" class="menu-item {% if request.endpoint == 'home' %}active{% endif %}">홈</a>
+    <a href="{{ url_for('archive') }}" class="menu-item {% if request.endpoint == 'archive' %}active{% endif %}">아카이브</a>
     {% if user %}
-      <a href="{{ url_for('upload') }}" class="menu-item">업로드</a>
-      <a href="{{ url_for('profile') }}" class="menu-item">내 정보</a>
+      <a href="{{ url_for('upload') }}" class="menu-item {% if request.endpoint == 'upload' %}active{% endif %}">업로드</a>
+      <a href="{{ url_for('profile') }}" class="menu-item {% if request.endpoint == 'profile' %}active{% endif %}">내 정보</a>
       {% if user.is_admin %}
-        <a href="{{ url_for('admin_pending') }}" class="menu-item">관리 승인</a>
+        <a href="{{ url_for('admin_pending') }}" class="menu-item {% if request.endpoint == 'admin_pending' %}active{% endif %}">관리 승인</a>
       {% endif %}
       <a href="{{ url_for('logout') }}" class="menu-item">로그아웃</a>
     {% else %}
