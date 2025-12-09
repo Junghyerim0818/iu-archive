@@ -1,22 +1,32 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>사진 업로드</h1>
-<p>오늘 업로드: {{ today_count }} / {{ limit }}</p>
+<section>
+  <h1>사진 업로드</h1>
+  <p style="margin-bottom: 24px;">
+    오늘 업로드: <strong style="color: var(--accent-blue);">{{ today_count }} / {{ limit }}</strong>
+    {% if today_count >= limit and not user.is_admin %}
+      <span style="color: var(--accent-pink);">(한도 도달)</span>
+    {% endif %}
+  </p>
 
-<form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" class="form">
-  <label>
-    행사명
-    <input type="text" name="event_name" placeholder="콘서트, 팬미팅 등" required>
-  </label>
-  <label>
-    촬영일
-    <input type="date" name="taken_date" value="{{ today }}">
-  </label>
-  <label>
-    사진 파일
-    <input type="file" name="photo" accept="image/*" required>
-  </label>
-  <button type="submit">업로드 요청</button>
-</form>
+  <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" class="form">
+    <label style="display: flex; flex-direction: column; gap: 8px; color: #fff;">
+      행사명
+      <input type="text" name="event_name" placeholder="콘서트, 팬미팅, 공연 등" required>
+    </label>
+    <label style="display: flex; flex-direction: column; gap: 8px; color: #fff;">
+      촬영일
+      <input type="date" name="taken_date" value="{{ today }}" required>
+    </label>
+    <label style="display: flex; flex-direction: column; gap: 8px; color: #fff;">
+      사진 파일
+      <input type="file" name="photo" accept="image/*" required style="padding: 8px;">
+    </label>
+    <button type="submit">업로드 요청</button>
+    <p class="small" style="margin-top: -8px;">
+      업로드된 사진은 관리자 승인 후 공개됩니다.
+    </p>
+  </form>
+</section>
 {% endblock %}
 

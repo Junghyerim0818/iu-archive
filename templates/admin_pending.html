@@ -1,26 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>관리자 승인 대기</h1>
+<section>
+  <h1>관리자 승인 대기</h1>
+  <p>업로드된 사진을 검토하고 승인 또는 거절하세요.</p>
+</section>
 
 {% if photos %}
   <div class="grid">
     {% for photo in photos %}
       <figure class="card">
-        <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}">
+        <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
         <figcaption>
-          <div>{{ photo.taken_date }} · {{ photo.event_name }}</div>
-          <div class="small">{{ photo.original_name }} / {{ photo.user.email }}</div>
-          <form method="post" class="actions">
+          <div style="margin-bottom: 8px; color: #fff; font-weight: 500;">
+            {{ photo.taken_date }} · {{ photo.event_name or '기타' }}
+          </div>
+          <div class="small" style="margin-bottom: 12px;">
+            {{ photo.original_name }}<br>
+            업로더: {{ photo.user.email }}
+          </div>
+          <form method="post" class="actions" style="margin-top: 0;">
             <input type="hidden" name="photo_id" value="{{ photo.id }}">
-            <button name="action" value="approve">승인</button>
-            <button name="action" value="reject" class="secondary">거절</button>
+            <button name="action" value="approve" type="submit" style="flex: 1;">승인</button>
+            <button name="action" value="reject" class="secondary" type="submit" style="flex: 1;">거절</button>
           </form>
         </figcaption>
       </figure>
     {% endfor %}
   </div>
 {% else %}
-  <p>대기 중인 업로드가 없습니다.</p>
+  <div class="empty-state">
+    <p>대기 중인 업로드가 없습니다.</p>
+  </div>
 {% endif %}
 {% endblock %}
 
