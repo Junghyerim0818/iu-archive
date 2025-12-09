@@ -10,7 +10,6 @@
   <header class="topbar">
     <div class="header-left">
       <div class="brand-logo">
-        <div class="logo-square">IU</div>
         <span class="brand-text">IU Archive</span>
       </div>
       <nav class="nav-main">
@@ -39,7 +38,6 @@
           <a href="{{ url_for('logout') }}" class="btn-logout">로그아웃</a>
         </div>
       {% else %}
-        <a href="{{ url_for('login') }}" class="btn-login">로그인</a>
         <a href="{{ url_for('login') }}" class="btn-primary">시작하기</a>
       {% endif %}
     </div>
@@ -61,7 +59,7 @@
 
   <footer class="footer">
     <span>팬이 만드는 아이유 사진 아카이브</span>
-    <p style="margin-top: 8px; font-size: 12px; color: rgba(255, 255, 255, 0.4);">
+    <p style="margin-top: 8px; font-size: 12px; color: #999;">
       IU Archive © 2025
     </p>
   </footer>
