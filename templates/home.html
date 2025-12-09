@@ -1,19 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <!-- 파도 효과 -->
-<div class="wave-container">
-  <svg class="wave wave1" viewBox="0 0 1200 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-    <path d="M0,100 C150,200 350,0 600,100 C850,200 1050,0 1200,100 L1200,200 L0,200 Z" fill="rgba(255,255,255,0.4)"></path>
-  </svg>
-  <svg class="wave wave2" viewBox="0 0 1200 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-    <path d="M0,100 C150,0 350,200 600,100 C850,0 1050,200 1200,100 L1200,200 L0,200 Z" fill="rgba(255,255,255,0.35)"></path>
-  </svg>
-  <svg class="wave wave3" viewBox="0 0 1200 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-    <path d="M0,120 C200,60 400,140 600,100 C800,60 1000,140 1200,100 L1200,200 L0,200 Z" fill="rgba(255,255,255,0.3)"></path>
-  </svg>
-  <svg class="wave wave4" viewBox="0 0 1200 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-    <path d="M0,80 C300,140 500,60 800,100 C1000,60 1100,140 1200,100 L1200,200 L0,200 Z" fill="rgba(255,255,255,0.25)"></path>
-  </svg>
+<div class="ocean">
+  <div class="wave"></div>
+  <div class="wave"></div>
 </div>
 {% endblock %}
 
