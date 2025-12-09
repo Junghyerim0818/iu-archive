@@ -91,9 +91,11 @@ body.home-page {
   width: 200%;
   height: 50%;
   min-height: 300px;
-  animation: wave-animation ease-in-out infinite;
+  animation: wave-animation 12s linear infinite;
   transform-origin: bottom center;
   z-index: 0;
+  display: block;
+  will-change: transform;
 }
 
 .wave1 {
@@ -132,17 +134,11 @@ body.home-page {
   0% {
     transform: translateX(0) translateY(0) scaleY(1);
   }
-  25% {
-    transform: translateX(-12.5%) translateY(-5px) scaleY(1.02);
-  }
   50% {
-    transform: translateX(-25%) translateY(-8px) scaleY(1.05);
-  }
-  75% {
-    transform: translateX(-37.5%) translateY(-5px) scaleY(1.02);
+    transform: translateX(-50%) translateY(-8px) scaleY(1.05);
   }
   100% {
-    transform: translateX(-50%) translateY(0) scaleY(1);
+    transform: translateX(-100%) translateY(0) scaleY(1);
   }
 }
 
