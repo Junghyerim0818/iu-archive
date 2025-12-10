@@ -83,10 +83,9 @@ body.home-page {
 /* IU 텍스트 스타일 */
 .iu-container {
   position: fixed;
-  top: 0;
+  top: 18rem;
   left: 0;
   width: 100%;
-  height: 100%;
   z-index: 1;
   display: flex;
   align-items: center;
@@ -115,7 +114,8 @@ h1.iu-title {
   display: inline-block;
 }
 
-svg {
+/* 홈 페이지 파도 SVG 스타일 */
+.wave-svg {
   position: absolute;
   top: 0;
   left: 0;
@@ -123,6 +123,57 @@ svg {
   height: 100%;
   box-sizing: border-box;
   display: block;
+  z-index: 0;
+}
+
+/* Flash 메시지 아이콘 */
+.flash-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.flash-success-icon {
+  color: #4ade80;
+}
+
+.flash-error-icon {
+  color: #f87171;
+}
+
+/* 업로드 아이콘 */
+.upload-icon {
+  display: block;
+  margin: 0 auto 16px;
+  color: var(--text-gray);
+}
+
+/* 제출 버튼 아이콘 */
+.submit-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+}
+
+/* 프로필 아바타 아이콘 */
+.profile-avatar-icon {
+  display: block;
+  color: var(--text-gray);
+}
+
+/* 빈 상태 아이콘 */
+.empty-icon {
+  display: block;
+  margin: 0 auto 16px;
+  color: var(--text-gray);
+}
+
+/* 관리자 승인/거절 아이콘 */
+.approve-icon,
+.reject-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
 }
 
 
@@ -551,9 +602,7 @@ svg {
   color: var(--text-gray);
 }
 
-.file-upload-placeholder svg {
-  color: var(--text-gray);
-}
+/* .file-upload-placeholder svg는 .upload-icon으로 대체됨 */
 
 .file-upload-placeholder p {
   font-size: 16px;

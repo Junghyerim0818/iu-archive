@@ -158,11 +158,13 @@ class User(db.Model):
 class Photo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    relative_path = db.Column(db.String(512), nullable=False)
+    relative_path = db.Column(db.String(512), nullable=False)  # 승인 후 실제 경로
+    temp_path = db.Column(db.String(512))  # 승인 전 임시 저장 경로
     original_name = db.Column(db.String(255))
     event_name = db.Column(db.String(255))
     taken_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(32), default="pending")  # pending/approved/rejected
+    file_size = db.Column(db.Integer)  # 파일 크기 (bytes)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship("User", backref="photos")
@@ -358,16 +360,19 @@ def upload():
         if app.config["STORAGE_BACKEND"] == "s3":
             # S3를 사용할 때는 데이터베이스의 file_size 컬럼 사용
             for photo in today_photos:
-                if hasattr(photo, 'file_size') and photo.file_size:
+                if photo.file_size:
                     today_total_size += photo.file_size
         else:
             # 로컬 스토리지를 사용할 때는 파일 시스템에서 크기 확인
             upload_root = ensure_upload_folder()
             for photo in today_photos:
                 try:
-                    photo_path = upload_root / photo.relative_path
-                    if photo_path.exists():
-                        today_total_size += photo_path.stat().st_size
+                    # 승인 전에는 temp_path, 승인 후에는 relative_path 사용
+                    file_path = photo.relative_path if photo.relative_path else photo.temp_path
+                    if file_path:
+                        photo_path = upload_root / file_path
+                        if photo_path.exists():
+                            today_total_size += photo_path.stat().st_size
                 except Exception:
                     pass
     
@@ -415,12 +420,28 @@ def upload():
             flash("파일 이름이 올바르지 않습니다.", "error")
             return redirect(url_for("upload"))
 
-        folder_name = f"{taken_date_value}_{event_name.replace(' ', '_')}"
+        # 먼저 DB에 저장하여 ID를 얻음
+        photo_data = {
+            "user_id": user.id,
+            "relative_path": "",  # 승인 전에는 비어있음
+            "original_name": file.filename,
+            "event_name": event_name,
+            "taken_date": taken_date_value,
+            "status": "pending",
+            "file_size": file_size,
+        }
+        
+        photo = Photo(**photo_data)
+        db.session.add(photo)
+        db.session.flush()  # ID를 얻기 위해 flush
+        
+        # 임시 저장 경로 설정
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
-        relative_path = Path(folder_name) / f"{timestamp}_{safe_name}"
-
+        temp_path = f"pending/{photo.id}/{timestamp}_{safe_name}"
+        
         if app.config["STORAGE_BACKEND"] == "s3":
-            key = str(relative_path).replace("\\", "/")
+            # S3 임시 경로에 저장
+            key = temp_path.replace("\\", "/")
             file.stream.seek(0)
             s3_client.upload_fileobj(
                 file.stream,
@@ -429,25 +450,15 @@ def upload():
                 ExtraArgs={"ContentType": file.mimetype or "application/octet-stream"},
             )
         else:
+            # 로컬 임시 경로에 저장
             upload_root = ensure_upload_folder()
-            target_dir = upload_root / folder_name
-            target_dir.mkdir(parents=True, exist_ok=True)
-            file.save(target_dir / relative_path.name)
-
-        photo_data = {
-            "user_id": user.id,
-            "relative_path": str(relative_path).replace("\\", "/"),
-            "original_name": file.filename,
-            "event_name": event_name,
-            "taken_date": taken_date_value,
-            "status": "pending",
-        }
-        # file_size 컬럼이 있으면 추가
-        if hasattr(Photo, 'file_size'):
-            photo_data["file_size"] = file_size
+            temp_dir = upload_root / "pending" / str(photo.id)
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            file.save(temp_dir / f"{timestamp}_{safe_name}")
+            temp_path = f"pending/{photo.id}/{timestamp}_{safe_name}"
         
-        photo = Photo(**photo_data)
-        db.session.add(photo)
+        # 임시 경로 저장
+        photo.temp_path = temp_path.replace("\\", "/")
         db.session.commit()
 
         flash("업로드가 접수되었습니다. 관리자의 승인 후 아카이브에 노출됩니다.", "success")
@@ -483,11 +494,89 @@ def admin_pending():
         photo = db.session.get(Photo, photo_id)
         if photo:
             if action == "approve":
+                # 승인: 임시 파일을 실제 경로로 이동
+                if photo.temp_path and not photo.relative_path:
+                    folder_name = f"{photo.taken_date}_{photo.event_name.replace(' ', '_')}"
+                    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+                    safe_name = secure_filename(photo.original_name) or "photo"
+                    final_path = f"{folder_name}/{timestamp}_{safe_name}"
+                    
+                    if app.config["STORAGE_BACKEND"] == "s3":
+                        # S3에서 임시 파일을 실제 경로로 복사
+                        try:
+                            s3_client.copy_object(
+                                CopySource={"Bucket": app.config["S3_BUCKET"], "Key": photo.temp_path},
+                                Bucket=app.config["S3_BUCKET"],
+                                Key=final_path.replace("\\", "/"),
+                            )
+                            # 임시 파일 삭제
+                            s3_client.delete_object(
+                                Bucket=app.config["S3_BUCKET"],
+                                Key=photo.temp_path,
+                            )
+                        except Exception as e:
+                            app.logger.error(f"S3 파일 이동 실패: {e}")
+                            flash("파일 이동 중 오류가 발생했습니다.", "error")
+                            return redirect(url_for("admin_pending"))
+                    else:
+                        # 로컬에서 임시 파일을 실제 경로로 이동
+                        upload_root = ensure_upload_folder()
+                        temp_file_path = upload_root / photo.temp_path
+                        target_dir = upload_root / folder_name
+                        target_dir.mkdir(parents=True, exist_ok=True)
+                        target_file_path = target_dir / f"{timestamp}_{safe_name}"
+                        
+                        try:
+                            if temp_file_path.exists():
+                                temp_file_path.rename(target_file_path)
+                                # 임시 디렉토리 정리 (비어있으면 삭제)
+                                temp_dir = temp_file_path.parent
+                                try:
+                                    if not any(temp_dir.iterdir()):
+                                        temp_dir.rmdir()
+                                except:
+                                    pass
+                        except Exception as e:
+                            app.logger.error(f"로컬 파일 이동 실패: {e}")
+                            flash("파일 이동 중 오류가 발생했습니다.", "error")
+                            return redirect(url_for("admin_pending"))
+                    
+                    photo.relative_path = final_path.replace("\\", "/")
+                    photo.temp_path = None  # 임시 경로 제거
+                
                 photo.status = "approved"
+                db.session.commit()
+                flash("승인되었습니다.", "success")
             elif action == "reject":
+                # 거부: 임시 파일 삭제
+                if photo.temp_path:
+                    if app.config["STORAGE_BACKEND"] == "s3":
+                        try:
+                            s3_client.delete_object(
+                                Bucket=app.config["S3_BUCKET"],
+                                Key=photo.temp_path,
+                            )
+                        except Exception as e:
+                            app.logger.error(f"S3 파일 삭제 실패: {e}")
+                    else:
+                        upload_root = ensure_upload_folder()
+                        temp_file_path = upload_root / photo.temp_path
+                        try:
+                            if temp_file_path.exists():
+                                temp_file_path.unlink()
+                                # 임시 디렉토리 정리
+                                temp_dir = temp_file_path.parent
+                                try:
+                                    if not any(temp_dir.iterdir()):
+                                        temp_dir.rmdir()
+                                except:
+                                    pass
+                        except Exception as e:
+                            app.logger.error(f"로컬 파일 삭제 실패: {e}")
+                
                 photo.status = "rejected"
-            db.session.commit()
-            flash("처리되었습니다.", "success")
+                db.session.commit()
+                flash("거부되었습니다.", "success")
         return redirect(url_for("admin_pending"))
 
     pending = Photo.query.filter_by(status="pending").order_by(Photo.created_at).all()
@@ -513,13 +602,18 @@ def profile():
 
 
 def build_file_url(photo: Photo) -> str:
+    # 승인 전에는 temp_path 사용, 승인 후에는 relative_path 사용
+    file_path = photo.relative_path if photo.relative_path else photo.temp_path
+    if not file_path:
+        return ""
+    
     if app.config["STORAGE_BACKEND"] == "s3":
         return s3_client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": app.config["S3_BUCKET"], "Key": photo.relative_path},
+            Params={"Bucket": app.config["S3_BUCKET"], "Key": file_path},
             ExpiresIn=3600,
         )
-    return url_for("files", filename=photo.relative_path)
+    return url_for("files", filename=file_path)
 
 
 @app.context_processor
