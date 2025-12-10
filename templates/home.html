@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
-  <svg class="wave-svg" version="1.1" xmlns="http://www.w3.org/2000/svg"
+  <!-- 파도 컨테이너 -->
+  <div class="wave-container" id="waveContainer">
+    <svg class="wave-svg" version="1.1" xmlns="http://www.w3.org/2000/svg"
 		xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
 		<defs>
 			<linearGradient id="bg">
@@ -50,6 +52,7 @@
 			</use>
 		</g>
 	</svg>
+  </div>
 
   <!-- 스크롤 시 나타나는 모자이크 섹션 -->
   <div class="mosaic-section" id="mosaicSection">
@@ -75,6 +78,29 @@
   </div>
 
 <script>
+  // 스크롤에 따라 파도가 위로 올라가면서 잠기는 효과
+  function updateWavePosition() {
+    const waveContainer = document.getElementById('waveContainer');
+    const waveSvg = document.querySelector('.wave-svg');
+    if (!waveContainer || !waveSvg) return;
+    
+    const scrollPosition = window.scrollY;
+    const windowHeight = window.innerHeight;
+    
+    // 스크롤에 따라 파도를 위로 이동 (스크롤만큼 위로 올라감)
+    const translateY = -scrollPosition;
+    waveSvg.style.transform = `translateY(${translateY}px)`;
+    
+    // 파도가 완전히 올라가면 숨김
+    if (scrollPosition >= windowHeight) {
+      waveContainer.style.opacity = '0';
+    } else {
+      // 스크롤에 따라 점진적으로 투명해지기
+      const opacity = Math.max(0, 1 - scrollPosition / windowHeight);
+      waveContainer.style.opacity = opacity.toString();
+    }
+  }
+  
   // 스크롤에 따라 점진적으로 모자이크 표시
   function updateMosaicOpacity() {
     const mosaicSection = document.getElementById('mosaicSection');
@@ -110,6 +136,7 @@
   function onScroll() {
     if (!ticking) {
       window.requestAnimationFrame(function() {
+        updateWavePosition();
         updateMosaicOpacity();
         ticking = false;
       });
@@ -120,10 +147,16 @@
   window.addEventListener('scroll', onScroll, { passive: true });
   
   // 초기 로드 시 실행
-  window.addEventListener('load', updateMosaicOpacity);
+  window.addEventListener('load', function() {
+    updateWavePosition();
+    updateMosaicOpacity();
+  });
   
   // 리사이즈 시에도 업데이트
-  window.addEventListener('resize', updateMosaicOpacity);
+  window.addEventListener('resize', function() {
+    updateWavePosition();
+    updateMosaicOpacity();
+  });
 </script>
 {% endblock %}
 
