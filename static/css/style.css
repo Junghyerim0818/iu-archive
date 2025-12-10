@@ -475,7 +475,6 @@ h1.iu-title {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.5);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
   color: var(--text-white);
 }
 
