@@ -11,8 +11,8 @@
 </head>
 <body {% if request.endpoint == 'home' %}class="home-page"{% endif %}>
   {% if request.endpoint == 'home' %}
-    <div class="iu-container">
-      <h1 class="iu-title">IU ARCHIVE</h1>
+    <div class="iu-container" id="iuContainer">
+      <h1 class="iu-title" id="iuTitle">IU ARCHIVE</h1>
     </div>
   {% endif %}
 
@@ -63,7 +63,7 @@
     </div>
   </div>
 
-  <nav class="floating-menu">
+  <nav class="floating-menu" id="floatingMenu">
     <a href="{{ url_for('archive') }}" class="menu-item {% if request.endpoint == 'archive' %}active{% endif %}">아카이브</a>
     {% if user %}
       <a href="{{ url_for('upload') }}" class="menu-item {% if request.endpoint == 'upload' %}active{% endif %}">업로드</a>

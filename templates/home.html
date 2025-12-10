@@ -2,7 +2,6 @@
 {% block content %}
   <!-- 파도 컨테이너 -->
   <div class="wave-container" id="waveContainer">
-    <div class="wave-fade-mask"></div>
     <svg class="wave-svg" version="1.1" xmlns="http://www.w3.org/2000/svg"
 		xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
 		<defs>
@@ -55,10 +54,18 @@
 	</svg>
   </div>
 
-  <!-- 스크롤 시 나타나는 모자이크 섹션 -->
+  <!-- 클릭 시 나타나는 모자이크 섹션 -->
   <div class="mosaic-section" id="mosaicSection">
-    <!-- 스크롤에 따라 변하는 네모 -->
-    <div class="scroll-square" id="scrollSquare"></div>
+    <!-- 아카이브 추가하기 버튼 (상단에 위치) -->
+    <div class="cta-container-top">
+      <a href="{% if user %}{{ url_for('upload') }}{% else %}{{ url_for('login') }}{% endif %}" class="cta-button">
+        <span>아카이브 추가하기</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </a>
+    </div>
     
     <div class="mosaic-container" id="mosaicContainer">
       {% if random_photos %}
@@ -69,129 +76,64 @@
         {% endfor %}
       {% endif %}
     </div>
-    
-    <div class="cta-container">
-      <a href="{% if user %}{{ url_for('upload') }}{% else %}{{ url_for('login') }}{% endif %}" class="cta-button">
-        <span>아카이브 추가하기</span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </a>
-    </div>
   </div>
 
 <script>
-  // 스크롤에 따라 파도가 위로 올라가면서 잠기는 효과
-  function updateWavePosition() {
-    const waveContainer = document.getElementById('waveContainer');
-    const waveSvg = document.querySelector('.wave-svg');
-    if (!waveContainer || !waveSvg) return;
-    
-    const scrollPosition = window.scrollY;
-    const windowHeight = window.innerHeight;
-    
-    // 스크롤에 따라 파도를 위로 이동 (스크롤만큼 위로 올라감)
-    const translateY = -scrollPosition;
-    waveSvg.style.transform = `translateY(${translateY}px)`;
-    
-    // 파도가 완전히 올라가면 숨김
-    if (scrollPosition >= windowHeight) {
-      waveContainer.style.opacity = '0';
-    } else {
-      // 스크롤에 따라 점진적으로 투명해지기
-      const opacity = Math.max(0, 1 - scrollPosition / windowHeight);
-      waveContainer.style.opacity = opacity.toString();
-    }
-  }
+  let isActivated = false;
   
-  // 스크롤에 따라 변하는 네모 업데이트
-  function updateScrollSquare() {
-    const scrollSquare = document.getElementById('scrollSquare');
-    if (!scrollSquare) return;
+  // 클릭/터치 이벤트 핸들러
+  function handleActivation(event) {
+    // 이미 활성화되었으면 리턴
+    if (isActivated) return;
     
-    const scrollPosition = window.scrollY;
-    const windowHeight = window.innerHeight;
+    // 링크나 버튼 클릭은 무시
+    if (event.target.closest('a') || event.target.closest('button')) {
+      return;
+    }
+    
+    isActivated = true;
+    
+    const iuContainer = document.getElementById('iuContainer');
+    const iuTitle = document.getElementById('iuTitle');
     const mosaicSection = document.getElementById('mosaicSection');
+    const floatingMenu = document.getElementById('floatingMenu');
     
-    // 모자이크 섹션이 보이는 영역에서 네모 표시
-    const mosaicTop = mosaicSection ? mosaicSection.offsetTop : windowHeight;
-    const startPoint = windowHeight * 0.1;
-    
-    if (scrollPosition >= startPoint && scrollPosition < mosaicTop + windowHeight) {
-      // 스크롤 위치에 따라 크기와 회전 변경
-      const scrollProgress = (scrollPosition - startPoint) / windowHeight;
-      const size = 100 + (scrollProgress * 200); // 100px에서 300px로 증가
-      const rotation = scrollProgress * 360; // 0도에서 360도로 회전
-      const opacity = Math.min(1, scrollProgress * 2);
+    // 타이틀 페이드 아웃
+    if (iuContainer && iuTitle) {
+      iuContainer.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+      iuContainer.style.opacity = '0';
+      iuContainer.style.transform = 'translateY(-20px)';
       
-      scrollSquare.style.width = size + 'px';
-      scrollSquare.style.height = size + 'px';
-      scrollSquare.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
-      scrollSquare.style.opacity = opacity.toString();
-    } else {
-      scrollSquare.style.opacity = '0';
+      setTimeout(() => {
+        iuContainer.style.visibility = 'hidden';
+      }, 800);
     }
+    
+    // 모자이크와 메뉴 페이드 인
+    if (mosaicSection) {
+      setTimeout(() => {
+        mosaicSection.classList.add('visible');
+      }, 300);
+    }
+    
+    if (floatingMenu) {
+      setTimeout(() => {
+        floatingMenu.classList.add('visible');
+      }, 400);
+    }
+    
+    // 이벤트 리스너 제거
+    document.removeEventListener('click', handleActivation);
+    document.removeEventListener('touchstart', handleActivation);
   }
   
-  // 스크롤에 따라 점진적으로 모자이크 표시
-  function updateMosaicOpacity() {
-    const mosaicSection = document.getElementById('mosaicSection');
-    if (!mosaicSection) return;
-    
-    const scrollPosition = window.scrollY;
-    const windowHeight = window.innerHeight;
-    const startPoint = windowHeight * 0.1; // 스크롤 시작 지점 (10%에서 시작)
-    const endPoint = windowHeight * 0.8; // 완전히 표시되는 지점 (80%에서 완료)
-    const scrollRange = endPoint - startPoint;
-    
-    // 스크롤 위치에 따라 opacity 계산 (0.0 ~ 1.0)
-    let opacity = 0;
-    if (scrollPosition >= startPoint) {
-      const scrolled = scrollPosition - startPoint;
-      opacity = Math.min(scrolled / scrollRange, 1.0);
-    }
-    
-    // opacity를 0.1 단위로 반올림하여 클래스 적용
-    const opacityStep = Math.round(opacity * 10) / 10;
-    
-    // 새로운 opacity 설정
-    mosaicSection.setAttribute('data-opacity', opacityStep.toString());
-    
-    // visible 클래스는 opacity가 0보다 크면 추가
-    if (opacity > 0) {
-      mosaicSection.classList.add('visible');
-    }
-  }
-  
-  // 스크롤 이벤트 리스너 (throttle 적용)
-  let ticking = false;
-  function onScroll() {
-    if (!ticking) {
-      window.requestAnimationFrame(function() {
-        updateWavePosition();
-        updateMosaicOpacity();
-        updateScrollSquare();
-        ticking = false;
-      });
-      ticking = true;
-    }
-  }
-  
-  window.addEventListener('scroll', onScroll, { passive: true });
-  
-  // 초기 로드 시 실행
+  // 초기 이벤트 리스너 추가
   window.addEventListener('load', function() {
-    updateWavePosition();
-    updateMosaicOpacity();
-    updateScrollSquare();
-  });
-  
-  // 리사이즈 시에도 업데이트
-  window.addEventListener('resize', function() {
-    updateWavePosition();
-    updateMosaicOpacity();
-    updateScrollSquare();
+    // 약간의 지연 후 클릭 이벤트 활성화 (초기 로드 방해 방지)
+    setTimeout(() => {
+      document.addEventListener('click', handleActivation, { once: true });
+      document.addEventListener('touchstart', handleActivation, { once: true });
+    }, 500);
   });
 </script>
 {% endblock %}

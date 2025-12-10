@@ -111,6 +111,7 @@ body.home-page {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: opacity 0.8s ease, transform 0.8s ease, visibility 0.8s ease;
 }
 
 h5.iu {
@@ -157,7 +158,6 @@ h1.iu-title {
   display: block;
   z-index: 0;
   pointer-events: none;
-  transform: translateY(0);
 }
 
 /* Flash 메시지 아이콘 */
@@ -226,6 +226,14 @@ h1.iu-title {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 30px;
   padding: 8px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+
+.floating-menu.visible {
+  opacity: 1;
+  visibility: visible;
 }
 
 .menu-item {
@@ -433,14 +441,17 @@ h1.iu-title {
 
 /* 홈 화면 모자이크 섹션 */
 .mosaic-section {
-  position: relative;
-  min-height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
   padding: 0;
   opacity: 0;
+  visibility: hidden;
   transform: translateY(30px);
-  transition: opacity 0.8s ease, transform 0.8s ease;
+  transition: opacity 0.8s ease, transform 0.8s ease, visibility 0.8s ease;
   pointer-events: none;
-  margin-top: 100vh; /* 파도 영역 다음에 시작 */
   background: linear-gradient(to bottom, 
     rgba(202, 204, 207, 0.4) 0%,
     rgba(202, 204, 207, 0.4) 10%,
@@ -449,20 +460,16 @@ h1.iu-title {
     var(--bg-dark) 100% 
   );
   z-index: 1;
-  width: 100%;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .mosaic-section.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
   pointer-events: auto;
-  background: linear-gradient(to bottom, 
-    rgba(191, 194, 201, 0.06) 0%,
-    rgba(202, 204, 207, 0.2) 30%,
-    rgba(159, 159, 160, 0.15) 60%,
-    rgba(159, 159, 160, 0.1) 100%
-  );
 }
-
 
 /* 스크롤에 따른 점진적 표시를 위한 클래스들 */
 .mosaic-section[data-opacity="0"] {
@@ -526,7 +533,7 @@ h1.iu-title {
   gap: 0;
   width: 100%;
   margin: 0;
-  padding: 0;
+  padding: 120px 0 80px 0;
   box-sizing: border-box;
 }
 
@@ -584,6 +591,20 @@ h1.iu-title {
   align-items: center;
   width: 100%;
   margin-top: 50%;
+  box-sizing: border-box;
+}
+
+/* CTA 버튼 컨테이너 (상단) */
+.cta-container-top {
+  position: absolute;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
   box-sizing: border-box;
 }
 
@@ -1751,7 +1772,11 @@ h1.iu-title {
   .mosaic-container {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 0;
-    padding: 0;
+    padding: 100px 0 60px 0;
+  }
+
+  .cta-container-top {
+    top: 80px;
   }
 
   .cta-button {
