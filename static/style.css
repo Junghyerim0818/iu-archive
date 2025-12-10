@@ -21,6 +21,13 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'HancomSans';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2406-1@1.0/HancomSans-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-display: swap;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -86,9 +93,9 @@ body.home-page {
   justify-content: center;
 }
 
-h1.iu {
+h5.iu {
   font-family: 'IncheonEducation';
-  font-size: 100px;
+  font-size: 40px;
   font-weight: 300;
   color: var(--text-white);
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
@@ -97,28 +104,15 @@ h1.iu {
   display: inline-block;
 }
 
-h1.iu .char {
+h1.iu-title {
+  font-family: 'HancomSans';
+  font-size: 100px;
+  font-weight: 300;
+  color: var(--text-white);
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  z-index: 1;
+  position: relative;
   display: inline-block;
-  opacity: 0;
-  transform: translateY(20px);
-  animation: typeIn 0.5s ease forwards;
-}
-
-h1.iu .char:nth-child(1) { animation-delay: 0.1s; }
-h1.iu .char:nth-child(2) { animation-delay: 0.2s; }
-h1.iu .char:nth-child(3) { animation-delay: 0.3s; }
-h1.iu .char:nth-child(4) { animation-delay: 0.4s; }
-h1.iu .char:nth-child(5) { animation-delay: 0.5s; }
-h1.iu .char:nth-child(6) { animation-delay: 0.6s; }
-h1.iu .char:nth-child(7) { animation-delay: 0.7s; }
-h1.iu .char:nth-child(8) { animation-delay: 0.8s; }
-h1.iu .char:nth-child(9) { animation-delay: 0.9s; }
-
-@keyframes typeIn {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 svg {
@@ -129,7 +123,6 @@ svg {
   height: 100%;
   box-sizing: border-box;
   display: block;
-  filter: blur(3px);
 }
 
 
