@@ -51,6 +51,15 @@
     {% block content %}{% endblock %}
   </main>
 
+  <!-- 이미지 모달 -->
+  <div id="image-modal" class="image-modal">
+    <div class="image-modal__backdrop" onclick="closeImageModal()"></div>
+    <div class="image-modal__content">
+      <button type="button" class="image-modal__close" onclick="closeImageModal()">×</button>
+      <img id="image-modal-img" src="" alt="">
+    </div>
+  </div>
+
   <nav class="floating-menu">
     <a href="{{ url_for('home') }}" class="menu-item {% if request.endpoint == 'home' %}active{% endif %}">홈</a>
     <a href="{{ url_for('archive') }}" class="menu-item {% if request.endpoint == 'archive' %}active{% endif %}">아카이브</a>
@@ -186,6 +195,33 @@
           // 현재는 언어 선택만 저장
           console.log('Language changed to:', lang);
         });
+      });
+    });
+
+    // 이미지 모달
+    function openImageModal(src, alt) {
+      const modal = document.getElementById('image-modal');
+      const modalImg = document.getElementById('image-modal-img');
+      if (!modal || !modalImg) return;
+      modalImg.src = src;
+      modalImg.alt = alt || '';
+      modal.classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeImageModal() {
+      const modal = document.getElementById('image-modal');
+      const modalImg = document.getElementById('image-modal-img');
+      if (modal) modal.classList.remove('show');
+      if (modalImg) modalImg.src = '';
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const targets = document.querySelectorAll('.photo-item img, .photo-thumbnail img, .admin-photo img');
+      targets.forEach(img => {
+        img.style.cursor = 'zoom-in';
+        img.addEventListener('click', () => openImageModal(img.src, img.alt));
       });
     });
   </script>
