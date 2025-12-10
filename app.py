@@ -19,8 +19,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import NullPool
 from sqlalchemy import inspect, text
 from werkzeug.utils import secure_filename
-import boto3
-from botocore.client import Config
+from google.cloud import storage
+from google.oauth2 import service_account
 
 BASE_DIR = Path(__file__).parent
 IS_SERVERLESS = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
@@ -44,24 +44,40 @@ app.config.update(
     SQLALCHEMY_ENGINE_OPTIONS=engine_options,
     UPLOAD_FOLDER=BASE_DIR / "uploads",
     DAILY_UPLOAD_LIMIT=int(os.getenv("DAILY_UPLOAD_LIMIT", "10")),
-    STORAGE_BACKEND=os.getenv("STORAGE_BACKEND", "local"),  # local or s3
-    S3_BUCKET=os.getenv("S3_BUCKET"),
-    S3_REGION=os.getenv("S3_REGION", "ap-northeast-2"),
-    S3_ENDPOINT=os.getenv("S3_ENDPOINT"),  # 옵션: 커스텀 엔드포인트
+    STORAGE_BACKEND=os.getenv("STORAGE_BACKEND", "local"),  # local or gcs
+    GCS_BUCKET=os.getenv("GCS_BUCKET"),
+    GCS_PROJECT=os.getenv("GCS_PROJECT"),
+    GCS_CREDENTIALS=os.getenv("GCS_CREDENTIALS"),  # JSON 키 파일 경로 또는 JSON 문자열
 )
 
 db = SQLAlchemy(app)
-s3_client = None
-if app.config["STORAGE_BACKEND"] == "s3":
-    session_kwargs = {}
-    if app.config["S3_ENDPOINT"]:
-        session_kwargs["endpoint_url"] = app.config["S3_ENDPOINT"]
-    s3_client = boto3.client(
-        "s3",
-        region_name=app.config["S3_REGION"],
-        config=Config(signature_version="s3v4"),
-        **session_kwargs,
-    )
+gcs_client = None
+gcs_bucket = None
+if app.config["STORAGE_BACKEND"] == "gcs":
+    try:
+        # 서비스 계정 키 파일 경로 또는 JSON 문자열로 인증
+        if app.config["GCS_CREDENTIALS"]:
+            import json
+            # JSON 문자열인지 파일 경로인지 확인
+            if app.config["GCS_CREDENTIALS"].startswith("{"):
+                # JSON 문자열
+                credentials_info = json.loads(app.config["GCS_CREDENTIALS"])
+                credentials = service_account.Credentials.from_service_account_info(credentials_info)
+            else:
+                # 파일 경로
+                credentials = service_account.Credentials.from_service_account_file(
+                    app.config["GCS_CREDENTIALS"]
+                )
+            gcs_client = storage.Client(project=app.config["GCS_PROJECT"], credentials=credentials)
+        else:
+            # 환경 변수에서 자동으로 인증 (GOOGLE_APPLICATION_CREDENTIALS 등)
+            gcs_client = storage.Client(project=app.config["GCS_PROJECT"])
+        
+        gcs_bucket = gcs_client.bucket(app.config["GCS_BUCKET"])
+    except Exception as e:
+        app.logger.error(f"Google Cloud Storage 초기화 실패: {e}")
+        gcs_client = None
+        gcs_bucket = None
 
 
 def ensure_schema():
@@ -220,8 +236,8 @@ oauth.register(
 
 def ensure_upload_folder() -> Path:
     """로컬 스토리지를 사용할 때만 폴더를 생성합니다."""
-    if app.config["STORAGE_BACKEND"] == "s3":
-        # S3를 사용할 때는 임시 경로만 반환 (실제로는 사용되지 않음)
+    if app.config["STORAGE_BACKEND"] == "gcs":
+        # GCS를 사용할 때는 임시 경로만 반환 (실제로는 사용되지 않음)
         return Path("/tmp/uploads")
     
     upload_root = Path(app.config["UPLOAD_FOLDER"])
@@ -333,9 +349,9 @@ def archive():
 
 @app.route("/files/<path:filename>")
 def files(filename):
-    if app.config["STORAGE_BACKEND"] == "s3":
+    if app.config["STORAGE_BACKEND"] == "gcs":
         # 로컬 라우팅 불가, 아카이브에서 presigned URL을 직접 사용합니다.
-        flash("파일은 S3에서 제공됩니다.")
+        flash("파일은 Google Cloud Storage에서 제공됩니다.")
         return redirect(url_for("archive"))
     upload_root = ensure_upload_folder()
     return send_from_directory(upload_root, filename)
@@ -357,8 +373,8 @@ def upload():
     # 오늘 업로드한 파일의 총 크기 계산
     today_total_size = 0
     if not user.is_admin:
-        if app.config["STORAGE_BACKEND"] == "s3":
-            # S3를 사용할 때는 데이터베이스의 file_size 컬럼 사용
+        if app.config["STORAGE_BACKEND"] == "gcs":
+            # GCS를 사용할 때는 데이터베이스의 file_size 컬럼 사용
             for photo in today_photos:
                 if photo.file_size:
                     today_total_size += photo.file_size
@@ -367,12 +383,9 @@ def upload():
             upload_root = ensure_upload_folder()
             for photo in today_photos:
                 try:
-                    # 승인 전에는 temp_path, 승인 후에는 relative_path 사용
-                    file_path = photo.relative_path if photo.relative_path else photo.temp_path
-                    if file_path:
-                        photo_path = upload_root / file_path
-                        if photo_path.exists():
-                            today_total_size += photo_path.stat().st_size
+                    photo_path = upload_root / photo.relative_path
+                    if photo_path.exists():
+                        today_total_size += photo_path.stat().st_size
                 except Exception:
                     pass
     
@@ -420,10 +433,25 @@ def upload():
             flash("파일 이름이 올바르지 않습니다.", "error")
             return redirect(url_for("upload"))
 
-        # 먼저 DB에 저장하여 ID를 얻음
+        folder_name = f"{taken_date_value}_{event_name.replace(' ', '_')}"
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+        relative_path = Path(folder_name) / f"{timestamp}_{safe_name}"
+
+        if app.config["STORAGE_BACKEND"] == "gcs":
+            blob_name = str(relative_path).replace("\\", "/")
+            file.stream.seek(0)
+            blob = gcs_bucket.blob(blob_name)
+            blob.content_type = file.mimetype or "application/octet-stream"
+            blob.upload_from_file(file.stream)
+        else:
+            upload_root = ensure_upload_folder()
+            target_dir = upload_root / folder_name
+            target_dir.mkdir(parents=True, exist_ok=True)
+            file.save(target_dir / relative_path.name)
+
         photo_data = {
             "user_id": user.id,
-            "relative_path": "",  # 승인 전에는 비어있음
+            "relative_path": str(relative_path).replace("\\", "/"),
             "original_name": file.filename,
             "event_name": event_name,
             "taken_date": taken_date_value,
@@ -433,32 +461,6 @@ def upload():
         
         photo = Photo(**photo_data)
         db.session.add(photo)
-        db.session.flush()  # ID를 얻기 위해 flush
-        
-        # 임시 저장 경로 설정
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
-        temp_path = f"pending/{photo.id}/{timestamp}_{safe_name}"
-        
-        if app.config["STORAGE_BACKEND"] == "s3":
-            # S3 임시 경로에 저장
-            key = temp_path.replace("\\", "/")
-            file.stream.seek(0)
-            s3_client.upload_fileobj(
-                file.stream,
-                app.config["S3_BUCKET"],
-                key,
-                ExtraArgs={"ContentType": file.mimetype or "application/octet-stream"},
-            )
-        else:
-            # 로컬 임시 경로에 저장
-            upload_root = ensure_upload_folder()
-            temp_dir = upload_root / "pending" / str(photo.id)
-            temp_dir.mkdir(parents=True, exist_ok=True)
-            file.save(temp_dir / f"{timestamp}_{safe_name}")
-            temp_path = f"pending/{photo.id}/{timestamp}_{safe_name}"
-        
-        # 임시 경로 저장
-        photo.temp_path = temp_path.replace("\\", "/")
         db.session.commit()
 
         flash("업로드가 접수되었습니다. 관리자의 승인 후 아카이브에 노출됩니다.", "success")
@@ -494,85 +496,35 @@ def admin_pending():
         photo = db.session.get(Photo, photo_id)
         if photo:
             if action == "approve":
-                # 승인: 임시 파일을 실제 경로로 이동
-                if photo.temp_path and not photo.relative_path:
-                    folder_name = f"{photo.taken_date}_{photo.event_name.replace(' ', '_')}"
-                    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
-                    safe_name = secure_filename(photo.original_name) or "photo"
-                    final_path = f"{folder_name}/{timestamp}_{safe_name}"
-                    
-                    if app.config["STORAGE_BACKEND"] == "s3":
-                        # S3에서 임시 파일을 실제 경로로 복사
-                        try:
-                            s3_client.copy_object(
-                                CopySource={"Bucket": app.config["S3_BUCKET"], "Key": photo.temp_path},
-                                Bucket=app.config["S3_BUCKET"],
-                                Key=final_path.replace("\\", "/"),
-                            )
-                            # 임시 파일 삭제
-                            s3_client.delete_object(
-                                Bucket=app.config["S3_BUCKET"],
-                                Key=photo.temp_path,
-                            )
-                        except Exception as e:
-                            app.logger.error(f"S3 파일 이동 실패: {e}")
-                            flash("파일 이동 중 오류가 발생했습니다.", "error")
-                            return redirect(url_for("admin_pending"))
-                    else:
-                        # 로컬에서 임시 파일을 실제 경로로 이동
-                        upload_root = ensure_upload_folder()
-                        temp_file_path = upload_root / photo.temp_path
-                        target_dir = upload_root / folder_name
-                        target_dir.mkdir(parents=True, exist_ok=True)
-                        target_file_path = target_dir / f"{timestamp}_{safe_name}"
-                        
-                        try:
-                            if temp_file_path.exists():
-                                temp_file_path.rename(target_file_path)
-                                # 임시 디렉토리 정리 (비어있으면 삭제)
-                                temp_dir = temp_file_path.parent
-                                try:
-                                    if not any(temp_dir.iterdir()):
-                                        temp_dir.rmdir()
-                                except:
-                                    pass
-                        except Exception as e:
-                            app.logger.error(f"로컬 파일 이동 실패: {e}")
-                            flash("파일 이동 중 오류가 발생했습니다.", "error")
-                            return redirect(url_for("admin_pending"))
-                    
-                    photo.relative_path = final_path.replace("\\", "/")
-                    photo.temp_path = None  # 임시 경로 제거
-                
                 photo.status = "approved"
                 db.session.commit()
                 flash("승인되었습니다.", "success")
             elif action == "reject":
-                # 거부: 임시 파일 삭제
-                if photo.temp_path:
-                    if app.config["STORAGE_BACKEND"] == "s3":
-                        try:
-                            s3_client.delete_object(
-                                Bucket=app.config["S3_BUCKET"],
-                                Key=photo.temp_path,
-                            )
-                        except Exception as e:
-                            app.logger.error(f"S3 파일 삭제 실패: {e}")
+                # 거부 시 파일 삭제
+                try:
+                    if app.config["STORAGE_BACKEND"] == "gcs":
+                        # Google Cloud Storage에서 파일 삭제
+                        blob = gcs_bucket.blob(photo.relative_path)
+                        if blob.exists():
+                            blob.delete()
+                            app.logger.info(f"GCS 파일 삭제 완료: {photo.relative_path}")
                     else:
+                        # 로컬 스토리지에서 파일 삭제
                         upload_root = ensure_upload_folder()
-                        temp_file_path = upload_root / photo.temp_path
-                        try:
-                            if temp_file_path.exists():
-                                temp_file_path.unlink()
-                                # 임시 디렉토리 정리
-                                temp_dir = temp_file_path.parent
-                                try:
-                                    if not any(temp_dir.iterdir()):
-                                        temp_dir.rmdir()
-                                except:
-                                    pass
-                        except Exception as e:
-                            app.logger.error(f"로컬 파일 삭제 실패: {e}")
+                        file_path = upload_root / photo.relative_path
+                        if file_path.exists():
+                            file_path.unlink()
+                            app.logger.info(f"로컬 파일 삭제 완료: {photo.relative_path}")
+                            # 빈 디렉토리 정리
+                            try:
+                                folder_path = file_path.parent
+                                if not any(folder_path.iterdir()):
+                                    folder_path.rmdir()
+                            except:
+                                pass
+                except Exception as e:
+                    app.logger.error(f"파일 삭제 실패: {e}")
+                    flash("파일 삭제 중 오류가 발생했습니다.", "error")
                 
                 photo.status = "rejected"
                 db.session.commit()
@@ -602,18 +554,11 @@ def profile():
 
 
 def build_file_url(photo: Photo) -> str:
-    # 승인 전에는 temp_path 사용, 승인 후에는 relative_path 사용
-    file_path = photo.relative_path if photo.relative_path else photo.temp_path
-    if not file_path:
-        return ""
-    
-    if app.config["STORAGE_BACKEND"] == "s3":
-        return s3_client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": app.config["S3_BUCKET"], "Key": file_path},
-            ExpiresIn=3600,
-        )
-    return url_for("files", filename=file_path)
+    if app.config["STORAGE_BACKEND"] == "gcs":
+        blob = gcs_bucket.blob(photo.relative_path)
+        # 1시간 유효한 presigned URL 생성
+        return blob.generate_signed_url(expiration=3600, method="GET")
+    return url_for("files", filename=photo.relative_path)
 
 
 @app.context_processor
