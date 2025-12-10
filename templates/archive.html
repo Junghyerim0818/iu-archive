@@ -32,6 +32,9 @@
       <div class="loading-spinner"></div>
       <p>사진을 불러오는 중...</p>
     </div>
+    <div class="mosaic-empty-state" id="mosaicEmptyState" style="display: none;">
+      <p>아직 승인된 사진이 없습니다.</p>
+    </div>
   </div>
 
   <!-- 날짜별 리스트 뷰 -->
@@ -108,6 +111,7 @@ function switchView(view) {
     if (mosaicContainer.children.length === 0) {
       currentPage = 1;
       hasMore = true;
+      mosaicEmptyState.style.display = 'none';
       loadMosaicPhotos();
     }
   } else {
@@ -149,28 +153,40 @@ let isLoading = false;
 let hasMore = true;
 const mosaicContainer = document.getElementById('mosaicContainer');
 const loadingIndicator = document.getElementById('loadingIndicator');
+const mosaicEmptyState = document.getElementById('mosaicEmptyState');
 
 function loadMosaicPhotos() {
   if (isLoading || !hasMore) return;
   
   isLoading = true;
   loadingIndicator.style.display = 'block';
+  mosaicEmptyState.style.display = 'none';
   
   fetch(`/api/archive/photos?page=${currentPage}&per_page=30`)
     .then(response => response.json())
     .then(data => {
-      data.photos.forEach(photo => {
-        const photoItem = document.createElement('div');
-        photoItem.className = 'mosaic-photo-item';
-        photoItem.innerHTML = `
-          <img src="${photo.url}" alt="${photo.event_name}" loading="lazy">
-          <div class="mosaic-photo-info">${photo.event_name}</div>
-        `;
-        mosaicContainer.appendChild(photoItem);
-      });
+      // 첫 페이지이고 사진이 없을 때
+      if (currentPage === 1 && data.photos.length === 0) {
+        mosaicContainer.innerHTML = '';
+        mosaicEmptyState.style.display = 'block';
+        hasMore = false;
+      } else if (data.photos.length > 0) {
+        data.photos.forEach(photo => {
+          const photoItem = document.createElement('div');
+          photoItem.className = 'mosaic-photo-item';
+          photoItem.innerHTML = `
+            <img src="${photo.url}" alt="${photo.event_name}" loading="lazy">
+            <div class="mosaic-photo-info">${photo.event_name}</div>
+          `;
+          mosaicContainer.appendChild(photoItem);
+        });
+        
+        hasMore = data.has_more;
+        currentPage++;
+      } else {
+        hasMore = false;
+      }
       
-      hasMore = data.has_more;
-      currentPage++;
       isLoading = false;
       loadingIndicator.style.display = 'none';
     })
@@ -178,6 +194,10 @@ function loadMosaicPhotos() {
       console.error('Error loading photos:', error);
       isLoading = false;
       loadingIndicator.style.display = 'none';
+      // 에러 발생 시에도 빈 상태 표시
+      if (currentPage === 1 && mosaicContainer.children.length === 0) {
+        mosaicEmptyState.style.display = 'block';
+      }
     });
 }
 

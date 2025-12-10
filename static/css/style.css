@@ -397,7 +397,7 @@ h1.iu-title {
 /* 버튼 컨테이너 (상단) */
 .cta-container-top {
   position: fixed;
-  top: 30%;
+  top: 45%;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -476,7 +476,7 @@ h1.iu-title {
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(10px);
   padding: 8px;
-  border-radius: 12px;
+  border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -487,7 +487,7 @@ h1.iu-title {
   padding: 10px 16px;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
+  border-radius: 20px;
   color: var(--text-gray);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -588,6 +588,21 @@ h1.iu-title {
 .loading-indicator p {
   margin: 0;
   font-size: 14px;
+}
+
+.mosaic-empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-gray);
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mosaic-empty-state p {
+  font-size: 18px;
+  margin: 0;
 }
 
 /* 날짜별 리스트 뷰 */
@@ -1652,6 +1667,15 @@ h1.iu-title {
   .archive-mosaic-view .mosaic-container {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 1px;
+  }
+
+  .mosaic-empty-state {
+    padding: 60px 20px;
+    min-height: 50vh;
+  }
+
+  .mosaic-empty-state p {
+    font-size: 16px;
   }
 
 
