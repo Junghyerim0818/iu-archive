@@ -57,6 +57,9 @@
 
   <!-- 스크롤 시 나타나는 모자이크 섹션 -->
   <div class="mosaic-section" id="mosaicSection">
+    <!-- 스크롤에 따라 변하는 네모 -->
+    <div class="scroll-square" id="scrollSquare"></div>
+    
     <div class="mosaic-container" id="mosaicContainer">
       {% if random_photos %}
         {% for photo in random_photos %}
@@ -102,6 +105,35 @@
     }
   }
   
+  // 스크롤에 따라 변하는 네모 업데이트
+  function updateScrollSquare() {
+    const scrollSquare = document.getElementById('scrollSquare');
+    if (!scrollSquare) return;
+    
+    const scrollPosition = window.scrollY;
+    const windowHeight = window.innerHeight;
+    const mosaicSection = document.getElementById('mosaicSection');
+    
+    // 모자이크 섹션이 보이는 영역에서 네모 표시
+    const mosaicTop = mosaicSection ? mosaicSection.offsetTop : windowHeight;
+    const startPoint = windowHeight * 0.1;
+    
+    if (scrollPosition >= startPoint && scrollPosition < mosaicTop + windowHeight) {
+      // 스크롤 위치에 따라 크기와 회전 변경
+      const scrollProgress = (scrollPosition - startPoint) / windowHeight;
+      const size = 100 + (scrollProgress * 200); // 100px에서 300px로 증가
+      const rotation = scrollProgress * 360; // 0도에서 360도로 회전
+      const opacity = Math.min(1, scrollProgress * 2);
+      
+      scrollSquare.style.width = size + 'px';
+      scrollSquare.style.height = size + 'px';
+      scrollSquare.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+      scrollSquare.style.opacity = opacity.toString();
+    } else {
+      scrollSquare.style.opacity = '0';
+    }
+  }
+  
   // 스크롤에 따라 점진적으로 모자이크 표시
   function updateMosaicOpacity() {
     const mosaicSection = document.getElementById('mosaicSection');
@@ -139,6 +171,7 @@
       window.requestAnimationFrame(function() {
         updateWavePosition();
         updateMosaicOpacity();
+        updateScrollSquare();
         ticking = false;
       });
       ticking = true;
@@ -151,12 +184,14 @@
   window.addEventListener('load', function() {
     updateWavePosition();
     updateMosaicOpacity();
+    updateScrollSquare();
   });
   
   // 리사이즈 시에도 업데이트
   window.addEventListener('resize', function() {
     updateWavePosition();
     updateMosaicOpacity();
+    updateScrollSquare();
   });
 </script>
 {% endblock %}

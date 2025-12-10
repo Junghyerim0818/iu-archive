@@ -473,6 +473,28 @@ h1.iu-title {
 
 .mosaic-section.visible {
   pointer-events: auto;
+  background: linear-gradient(to bottom, 
+    rgba(191, 194, 201, 0.06) 0%,
+    rgba(202, 204, 207, 0.2) 30%,
+    rgba(159, 159, 160, 0.15) 60%,
+    rgba(159, 159, 160, 0.1) 100%
+  );
+}
+
+/* 스크롤에 따라 변하는 네모 */
+.scroll-square {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  z-index: 10;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  opacity: 0;
 }
 
 /* 스크롤에 따른 점진적 표시를 위한 클래스들 */
@@ -593,8 +615,8 @@ h1.iu-title {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px 20px;
   width: 100%;
+  margin-top: 50%;
   box-sizing: border-box;
 }
 
@@ -634,7 +656,6 @@ h1.iu-title {
 /* 컨테이너 */
 .container {
   min-height: 100vh;
-  padding: 40px;
   position: relative;
   z-index: 2;
 }
