@@ -97,6 +97,11 @@
       <a href="{{ url_for('profile') }}" class="profile-menu-item {% if request.endpoint == 'profile' %}active{% endif %}">
         내 정보
       </a>
+      {% if user.is_admin %}
+      <a href="{{ url_for('admin_pending') }}" class="profile-menu-item {% if request.endpoint == 'admin_pending' %}active{% endif %}">
+        승인 관리
+      </a>
+      {% endif %}
       <a href="{{ url_for('logout') }}" class="profile-menu-item">
         로그아웃
       </a>
