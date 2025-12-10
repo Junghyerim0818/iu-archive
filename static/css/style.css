@@ -757,7 +757,6 @@ h1.iu-title {
   padding: 80px 20px;
   color: var(--text-gray);
   min-height: 60vh;
-  display: flex;
   align-items: center;
   justify-content: center;
 }
