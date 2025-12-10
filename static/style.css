@@ -8,8 +8,15 @@
 }
 
 @font-face {
-  font-family: 'ChosunIlboMyungjo';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/Chosunilbo_myungjo.woff') format('woff');
+  font-family: 'IncheonEducation';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2307-2@1.0/iceJaram-Rg.woff2') format('woff2');
+  font-weight: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'OngleipWFontList';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2501-1@1.1/Ownglyph_wiseelist-Rg.woff2') format('woff2');
   font-weight: normal;
   font-display: swap;
 }
@@ -80,13 +87,38 @@ body.home-page {
 }
 
 h1.iu {
-  font-family: 'ChosunIlboMyungjo';
+  font-family: 'IncheonEducation';
   font-size: 100px;
   font-weight: 300;
   color: var(--text-white);
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
   z-index: 1;
   position: relative;
+  display: inline-block;
+}
+
+h1.iu .char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: typeIn 0.5s ease forwards;
+}
+
+h1.iu .char:nth-child(1) { animation-delay: 0.1s; }
+h1.iu .char:nth-child(2) { animation-delay: 0.2s; }
+h1.iu .char:nth-child(3) { animation-delay: 0.3s; }
+h1.iu .char:nth-child(4) { animation-delay: 0.4s; }
+h1.iu .char:nth-child(5) { animation-delay: 0.5s; }
+h1.iu .char:nth-child(6) { animation-delay: 0.6s; }
+h1.iu .char:nth-child(7) { animation-delay: 0.7s; }
+h1.iu .char:nth-child(8) { animation-delay: 0.8s; }
+h1.iu .char:nth-child(9) { animation-delay: 0.9s; }
+
+@keyframes typeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 svg {
@@ -97,6 +129,7 @@ svg {
   height: 100%;
   box-sizing: border-box;
   display: block;
+  filter: blur(3px);
 }
 
 
@@ -115,7 +148,6 @@ svg {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 30px;
   padding: 8px;
-  filter: blur(5px);
 }
 
 .menu-item {
