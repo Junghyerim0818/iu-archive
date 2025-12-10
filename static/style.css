@@ -115,14 +115,15 @@ h1.iu-title {
 
 /* 홈 페이지 파도 SVG 스타일 */
 .wave-svg {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  height: 100vh;
   box-sizing: border-box;
   display: block;
   z-index: 0;
+  pointer-events: none;
 }
 
 /* Flash 메시지 아이콘 */
@@ -200,7 +201,6 @@ h1.iu-title {
   border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.3s ease;
   white-space: nowrap;
 }
 
@@ -362,6 +362,213 @@ h1.iu-title {
 
 .profile-menu-item:last-child {
   border-bottom: none;
+}
+
+/* 로그인 버튼 (로그아웃 상태) */
+.login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  text-decoration: none;
+  color: var(--text-white);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0;
+}
+
+.login-button:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  color: var(--text-white);
+}
+
+.login-button span {
+  padding: 0 8px;
+}
+
+/* 홈 화면 모자이크 섹션 */
+.mosaic-section {
+  position: relative;
+  min-height: 100vh;
+  padding: 120px 40px 80px;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  pointer-events: none;
+  margin-top: 100vh; /* 파도 영역 다음에 시작 */
+  background: linear-gradient(to bottom, 
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.5) 20%,
+    rgba(10, 10, 10, 0.7) 50%,
+    var(--bg-dark) 100%
+  );
+  z-index: 1;
+}
+
+.mosaic-section.visible {
+  pointer-events: auto;
+}
+
+/* 스크롤에 따른 점진적 표시를 위한 클래스들 */
+.mosaic-section[data-opacity="0"] {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.mosaic-section[data-opacity="0.1"] {
+  opacity: 0.1;
+  transform: translateY(27px);
+}
+
+.mosaic-section[data-opacity="0.2"] {
+  opacity: 0.2;
+  transform: translateY(24px);
+}
+
+.mosaic-section[data-opacity="0.3"] {
+  opacity: 0.3;
+  transform: translateY(21px);
+}
+
+.mosaic-section[data-opacity="0.4"] {
+  opacity: 0.4;
+  transform: translateY(18px);
+}
+
+.mosaic-section[data-opacity="0.5"] {
+  opacity: 0.5;
+  transform: translateY(15px);
+}
+
+.mosaic-section[data-opacity="0.6"] {
+  opacity: 0.6;
+  transform: translateY(12px);
+}
+
+.mosaic-section[data-opacity="0.7"] {
+  opacity: 0.7;
+  transform: translateY(9px);
+}
+
+.mosaic-section[data-opacity="0.8"] {
+  opacity: 0.8;
+  transform: translateY(6px);
+}
+
+.mosaic-section[data-opacity="0.9"] {
+  opacity: 0.9;
+  transform: translateY(3px);
+}
+
+.mosaic-section[data-opacity="1"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mosaic-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  max-width: 1400px;
+  margin: 0 auto 60px;
+  padding: 0 20px;
+}
+
+.mosaic-item {
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 8px;
+  opacity: 0;
+  transform: scale(0.8);
+  animation: mosaicFadeIn 0.6s ease forwards;
+  animation-delay: var(--delay, 0s);
+  cursor: pointer;
+  position: relative;
+}
+
+.mosaic-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.mosaic-item:hover img {
+  transform: scale(1.1);
+}
+
+.mosaic-item::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0);
+  transition: background 0.3s ease;
+}
+
+.mosaic-item:hover::after {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+@keyframes mosaicFadeIn {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* CTA 버튼 컨테이너 */
+.cta-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+}
+
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 32px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 30px;
+  color: var(--text-white);
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.cta-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  color: var(--text-white);
+}
+
+.cta-button svg {
+  transition: transform 0.3s ease;
+}
+
+.cta-button:hover svg {
+  transform: rotate(90deg);
 }
 
 /* 컨테이너 */
@@ -1477,5 +1684,30 @@ h1.iu-title {
   .profile-menu {
     bottom: 64px;
     min-width: 260px;
+  }
+
+  .login-button {
+    width: 48px;
+    height: 48px;
+    font-size: 12px;
+  }
+
+  .login-button span {
+    padding: 0 4px;
+  }
+
+  .mosaic-section {
+    padding: 100px 20px 60px;
+  }
+
+  .mosaic-container {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 6px;
+    padding: 0 10px;
+  }
+
+  .cta-button {
+    padding: 14px 28px;
+    font-size: 16px;
   }
 }

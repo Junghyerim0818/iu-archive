@@ -362,35 +362,16 @@ def home():
             pass
         db.session.rollback()
     
-    approved_recent = (
-        Photo.query.filter_by(status="approved")
-        .order_by(Photo.created_at.desc())
-        .limit(12)
-        .all()
-    )
+    # 랜덤 사진들을 모자이크용으로 가져오기
+    import random
+    all_approved = Photo.query.filter_by(status="approved").all()
+    # 랜덤으로 최대 50개 선택 (없으면 빈 리스트)
+    if len(all_approved) > 0:
+        random_photos = random.sample(all_approved, min(len(all_approved), 50))
+    else:
+        random_photos = []
     
-    # 통계 데이터
-    total_photos = Photo.query.count()
-    approved_photos = Photo.query.filter_by(status="approved").count()
-    pending_photos = Photo.query.filter_by(status="pending").count()
-    
-    # 방문자 통계 (테이블이 없을 수 있으므로 예외 처리)
-    try:
-        total_visitors = Visitor.query.count()
-        today_visitors = Visitor.query.filter_by(visited_date=today).count()
-    except Exception:
-        total_visitors = 0
-        today_visitors = 0
-    
-    stats = {
-        "total_photos": total_photos,
-        "approved_photos": approved_photos,
-        "pending_photos": pending_photos,
-        "total_visitors": total_visitors,
-        "today_visitors": today_visitors,
-    }
-    
-    return render_template("home.html", photos=approved_recent, user=current_user(), stats=stats)
+    return render_template("home.html", random_photos=random_photos, user=current_user())
 
 
 @app.route("/archive")

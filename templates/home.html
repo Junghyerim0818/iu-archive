@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-<body>
   <svg class="wave-svg" version="1.1" xmlns="http://www.w3.org/2000/svg"
 		xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
 		<defs>
@@ -51,6 +50,80 @@
 			</use>
 		</g>
 	</svg>
-</body>
+
+  <!-- 스크롤 시 나타나는 모자이크 섹션 -->
+  <div class="mosaic-section" id="mosaicSection">
+    <div class="mosaic-container" id="mosaicContainer">
+      {% if random_photos %}
+        {% for photo in random_photos %}
+          <div class="mosaic-item" style="--delay: {{ loop.index0 * 0.05 }}s">
+            <img src="{{ file_url(photo) }}" alt="{{ photo.original_name }}" loading="lazy" onclick="openImageModal('{{ file_url(photo) }}', '{{ photo.original_name }}')">
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+    
+    <div class="cta-container">
+      <a href="{% if user %}{{ url_for('upload') }}{% else %}{{ url_for('login') }}{% endif %}" class="cta-button">
+        <span>아카이브 추가하기</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </a>
+    </div>
+  </div>
+
+<script>
+  // 스크롤에 따라 점진적으로 모자이크 표시
+  function updateMosaicOpacity() {
+    const mosaicSection = document.getElementById('mosaicSection');
+    if (!mosaicSection) return;
+    
+    const scrollPosition = window.scrollY;
+    const windowHeight = window.innerHeight;
+    const startPoint = windowHeight * 0.1; // 스크롤 시작 지점 (10%에서 시작)
+    const endPoint = windowHeight * 0.8; // 완전히 표시되는 지점 (80%에서 완료)
+    const scrollRange = endPoint - startPoint;
+    
+    // 스크롤 위치에 따라 opacity 계산 (0.0 ~ 1.0)
+    let opacity = 0;
+    if (scrollPosition >= startPoint) {
+      const scrolled = scrollPosition - startPoint;
+      opacity = Math.min(scrolled / scrollRange, 1.0);
+    }
+    
+    // opacity를 0.1 단위로 반올림하여 클래스 적용
+    const opacityStep = Math.round(opacity * 10) / 10;
+    
+    // 새로운 opacity 설정
+    mosaicSection.setAttribute('data-opacity', opacityStep.toString());
+    
+    // visible 클래스는 opacity가 0보다 크면 추가
+    if (opacity > 0) {
+      mosaicSection.classList.add('visible');
+    }
+  }
+  
+  // 스크롤 이벤트 리스너 (throttle 적용)
+  let ticking = false;
+  function onScroll() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() {
+        updateMosaicOpacity();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }
+  
+  window.addEventListener('scroll', onScroll, { passive: true });
+  
+  // 초기 로드 시 실행
+  window.addEventListener('load', updateMosaicOpacity);
+  
+  // 리사이즈 시에도 업데이트
+  window.addEventListener('resize', updateMosaicOpacity);
+</script>
 {% endblock %}
 
