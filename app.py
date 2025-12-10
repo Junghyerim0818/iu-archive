@@ -174,8 +174,7 @@ class User(db.Model):
 class Photo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    relative_path = db.Column(db.String(512), nullable=False)  # 승인 후 실제 경로
-    temp_path = db.Column(db.String(512))  # 승인 전 임시 저장 경로
+    relative_path = db.Column(db.String(512), nullable=False)
     original_name = db.Column(db.String(255))
     event_name = db.Column(db.String(255))
     taken_date = db.Column(db.Date, nullable=False)
