@@ -424,8 +424,9 @@ h1.iu-title {
   color: var(--text-white);
 }
 
-.login-button span {
-  padding: 0 8px;
+.login-button svg {
+  width: 24px;
+  height: 24px;
 }
 
 /* 버튼 컨테이너 (상단) */
@@ -1804,11 +1805,11 @@ h1.iu-title {
   .login-button {
     width: 48px;
     height: 48px;
-    font-size: 12px;
   }
 
-  .login-button span {
-    padding: 0 4px;
+  .login-button svg {
+    width: 20px;
+    height: 20px;
   }
 
   .cta-container-top {
