@@ -119,6 +119,36 @@ def check_tables_exist():
         return False
 
 
+def ensure_photo_columns():
+    """Photo 테이블에 필요한 컬럼이 있는지 확인하고 없으면 추가"""
+    try:
+        uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        if uri.startswith("postgres"):
+            # PostgreSQL: 컬럼 존재 여부 확인
+            result = db.session.execute(text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'photo' AND column_name = 'file_size'
+            """))
+            if not result.fetchone():
+                # file_size 컬럼이 없으면 추가
+                db.session.execute(text("ALTER TABLE photo ADD COLUMN file_size INTEGER"))
+                db.session.commit()
+                app.logger.info("Photo 테이블에 file_size 컬럼 추가 완료")
+        elif uri.startswith("sqlite"):
+            # SQLite: 컬럼 존재 여부 확인
+            result = db.session.execute(text("PRAGMA table_info(photo)"))
+            columns = [row[1] for row in result.fetchall()]
+            if 'file_size' not in columns:
+                # SQLite는 ALTER TABLE ADD COLUMN 지원
+                db.session.execute(text("ALTER TABLE photo ADD COLUMN file_size INTEGER"))
+                db.session.commit()
+                app.logger.info("Photo 테이블에 file_size 컬럼 추가 완료")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.warning(f"컬럼 확인/추가 실패 (이미 존재할 수 있음): {e}")
+
+
 @app.before_request
 def ensure_schema_before_request():
     """모든 요청 전에 스키마가 존재하는지 확인하고 없으면 생성"""
@@ -156,6 +186,8 @@ def ensure_schema_before_request():
                 _schema_initialized = False  # 재시도 가능하도록
         else:
             app.logger.debug("테이블이 이미 존재합니다.")
+            # 기존 테이블에 필요한 컬럼이 있는지 확인하고 없으면 추가
+            ensure_photo_columns()
             _schema_initialized = True
     except Exception as exc:
         app.logger.error("요청 전 스키마 생성 실패: %s", exc, exc_info=True)
@@ -390,7 +422,8 @@ def upload():
     
     # 제한 설정
     MAX_FILES_PER_DAY = 20
-    MAX_SIZE_PER_DAY = 100 * 1024 * 1024  # 100MB
+    MAX_SIZE_PER_DAY = 100 * 1024 * 1024  # 100MB (하루 총 용량)
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB (개별 파일 최대 크기)
     
     if request.method == "POST":
         if not user.is_admin:
@@ -418,10 +451,12 @@ def upload():
         file.seek(0)  # 다시 시작으로
         
         if not user.is_admin:
-            if file_size > MAX_SIZE_PER_DAY:
-                flash(f"파일 크기가 너무 큽니다. (최대 100MB)", "error")
+            # 개별 파일 크기 체크
+            if file_size > MAX_FILE_SIZE:
+                flash(f"파일 크기가 너무 큽니다. (최대 {MAX_FILE_SIZE / (1024 * 1024):.0f}MB)", "error")
                 return redirect(url_for("upload"))
             
+            # 하루 총 용량 체크
             if today_total_size + file_size > MAX_SIZE_PER_DAY:
                 remaining_mb = (MAX_SIZE_PER_DAY - today_total_size) / (1024 * 1024)
                 flash(f"오늘 업로드 용량 한도에 도달했습니다. (남은 용량: {remaining_mb:.1f}MB)", "error")
