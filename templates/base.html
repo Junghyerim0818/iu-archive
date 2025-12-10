@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IU Archive</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body {% if request.endpoint == 'home' %}class="home-page"{% endif %}>
+  {% if request.endpoint == 'home' %}
+    <div class="iu-container">
+      <h1 class="iu">IU ARCHIVE</h1>
+    </div>
+  {% endif %}
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flash">
+        {% for category, msg in messages %}
+          <li class="{{ category or 'info' }}">
+            {% if category == 'success' %}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            {% elif category == 'error' %}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            {% endif %}
+            <span>{{ msg }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+      <script>
+        // 5초 후 알림 자동 닫기
+        setTimeout(() => {
+          const flash = document.querySelector('.flash');
+          if (flash) {
+            flash.style.opacity = '0';
+            flash.style.transform = 'translateX(-50%) translateY(-20px)';
+            setTimeout(() => flash.remove(), 300);
+          }
+        }, 5000);
+      </script>
+    {% endif %}
+  {% endwith %}
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <nav class="floating-menu">
+    <a href="{{ url_for('home') }}" class="menu-item {% if request.endpoint == 'home' %}active{% endif %}">홈</a>
+    <a href="{{ url_for('archive') }}" class="menu-item {% if request.endpoint == 'archive' %}active{% endif %}">아카이브</a>
+    {% if user %}
+      <a href="{{ url_for('upload') }}" class="menu-item {% if request.endpoint == 'upload' %}active{% endif %}">업로드</a>
+      <a href="{{ url_for('profile') }}" class="menu-item {% if request.endpoint == 'profile' %}active{% endif %}">내 정보</a>
+      {% if user.is_admin %}
+        <a href="{{ url_for('admin_pending') }}" class="menu-item {% if request.endpoint == 'admin_pending' %}active{% endif %}">관리 승인</a>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="menu-item">로그아웃</a>
+    {% else %}
+      <a href="{{ url_for('login') }}" class="menu-item">로그인</a>
+    {% endif %}
+  </nav>
+
+  <!-- 커스텀 커서 -->
+  <div class="custom-cursor"></div>
+
+  <script>
+    // 마우스 따라다니는 커서
+    (function() {
+      const cursor = document.querySelector('.custom-cursor');
+      if (!cursor) return;
+      
+      let mouseX = 0;
+      let mouseY = 0;
+      let cursorX = 0;
+      let cursorY = 0;
+      let isVisible = false;
+
+      // 마우스가 창 안에 있는지 확인
+      function isMouseInWindow(e) {
+        return e.clientX >= 0 && e.clientY >= 0 && 
+               e.clientX <= window.innerWidth && 
+               e.clientY <= window.innerHeight;
+      }
+
+      // 마우스 위치 추적
+      document.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        
+        // 창 안에 있으면 커서 표시
+        if (isMouseInWindow(e)) {
+          if (!isVisible) {
+            cursor.classList.add('visible');
+            isVisible = true;
+          }
+        } else {
+          // 창 밖으로 나갔으면 커서 숨기기
+          if (isVisible) {
+            cursor.classList.remove('visible');
+            isVisible = false;
+          }
+        }
+      });
+
+      // 마우스가 창 밖으로 나갔을 때 (body에서)
+      document.body.addEventListener('mouseleave', () => {
+        cursor.classList.remove('visible');
+        isVisible = false;
+      });
+
+      // 마우스가 창 안으로 들어왔을 때 (body에서)
+      document.body.addEventListener('mouseenter', () => {
+        cursor.classList.add('visible');
+        isVisible = true;
+      });
+
+      // 호버 효과
+      const hoverElements = document.querySelectorAll('a, button, .menu-item, input, textarea, select');
+      hoverElements.forEach(el => {
+        el.addEventListener('mouseenter', () => {
+          cursor.classList.add('hover');
+        });
+        el.addEventListener('mouseleave', () => {
+          cursor.classList.remove('hover');
+        });
+      });
+
+      // 부드러운 애니메이션 (탄성 효과)
+      function animateCursor() {
+        // 현재 위치와 목표 위치의 차이 계산
+        const dx = mouseX - cursorX;
+        const dy = mouseY - cursorY;
+        
+        // 탄성 효과를 위한 easing (0.1 = 딜레이 정도, 낮을수록 더 빠르게)
+        cursorX += dx * 0.15;
+        cursorY += dy * 0.15;
+        
+        // 커서 위치 업데이트
+        cursor.style.left = cursorX + 'px';
+        cursor.style.top = cursorY + 'px';
+        
+        requestAnimationFrame(animateCursor);
+      }
+
+      // 초기 위치 설정
+      cursorX = window.innerWidth / 2;
+      cursorY = window.innerHeight / 2;
+      cursor.style.left = cursorX + 'px';
+      cursor.style.top = cursorY + 'px';
+
+      // 애니메이션 시작
+      animateCursor();
+    })();
+
+    // 한영 변환 기능
+    document.addEventListener('DOMContentLoaded', function() {
+      const langButtons = document.querySelectorAll('.lang-btn');
+      const currentLang = localStorage.getItem('lang') || 'ko';
+      
+      // 저장된 언어로 버튼 상태 설정
+      langButtons.forEach(btn => {
+        if (btn.dataset.lang === currentLang) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+      
+      // 언어 버튼 클릭 이벤트
+      langButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+          const lang = this.dataset.lang;
+          localStorage.setItem('lang', lang);
+          
+          // 버튼 상태 업데이트
+          langButtons.forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          
+          // 실제 번역 기능은 여기에 추가 가능
+          // 현재는 언어 선택만 저장
+          console.log('Language changed to:', lang);
+        });
+      });
+    });
+  </script>
+</body>
+</html>
+
