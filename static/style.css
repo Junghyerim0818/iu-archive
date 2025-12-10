@@ -106,7 +106,6 @@ h5.iu {
 h1.iu-title {
   font-family: 'HancomSans';
   font-size: 100px;
-  font-weight: 300;
   color: var(--text-white);
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
   z-index: 1;
@@ -1096,17 +1095,14 @@ h1.iu-title {
 
 /* 반응형 */
 @media (max-width: 768px) {
-  .iu-3d {
-    font-size: 80px;
-    letter-spacing: -2px;
-    top: 30%;
+  h1.iu-title {
+    font-size: 60px;
   }
 
   .floating-menu {
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    flex-wrap: wrap;
     justify-content: center;
     max-width: 90%;
     padding: 6px;
