@@ -589,9 +589,15 @@ def profile():
 
 def build_file_url(photo: Photo) -> str:
     if app.config["STORAGE_BACKEND"] == "gcs":
+        from datetime import timedelta
+
         blob = gcs_bucket.blob(photo.relative_path)
-        # 1시간 유효한 presigned URL 생성
-        return blob.generate_signed_url(expiration=3600, method="GET")
+        # 1시간 유효한 서명 URL (V4) 생성
+        return blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(hours=1),
+            method="GET",
+        )
     return url_for("files", filename=photo.relative_path)
 
 
