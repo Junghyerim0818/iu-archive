@@ -67,7 +67,6 @@
     <a href="{{ url_for('archive') }}" class="menu-item {% if request.endpoint == 'archive' %}active{% endif %}">아카이브</a>
     {% if user %}
       <a href="{{ url_for('upload') }}" class="menu-item {% if request.endpoint == 'upload' %}active{% endif %}">업로드</a>
-      <a href="{{ url_for('profile') }}" class="menu-item {% if request.endpoint == 'profile' %}active{% endif %}">내 정보</a>
       {% if user.is_admin %}
         <a href="{{ url_for('admin_pending') }}" class="menu-item {% if request.endpoint == 'admin_pending' %}active{% endif %}">관리 승인</a>
       {% endif %}
@@ -76,6 +75,37 @@
       <a href="{{ url_for('login') }}" class="menu-item">로그인</a>
     {% endif %}
   </nav>
+
+  {% if user %}
+  <!-- 우측 하단 프로필 버튼 -->
+  <div class="profile-button-container">
+    <button class="profile-button" id="profileButton" onclick="toggleProfileMenu()">
+      {% if user.picture %}
+        <img src="{{ user.picture }}" alt="{{ user.name or user.email }}" class="profile-button-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        <div class="profile-button-initial" style="display: none;">{{ (user.name or user.email)[0]|upper }}</div>
+      {% else %}
+        <div class="profile-button-initial">{{ (user.name or user.email)[0]|upper }}</div>
+      {% endif %}
+    </button>
+    <div class="profile-menu" id="profileMenu">
+      <div class="profile-menu-header">
+        {% if user.picture %}
+          <img src="{{ user.picture }}" alt="{{ user.name or user.email }}" class="profile-menu-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="profile-menu-img-initial" style="display: none;">{{ (user.name or user.email)[0]|upper }}</div>
+        {% else %}
+          <div class="profile-menu-img-initial">{{ (user.name or user.email)[0]|upper }}</div>
+        {% endif %}
+        <div class="profile-menu-info">
+          <div class="profile-menu-name">{{ user.name or user.email }}</div>
+          <div class="profile-menu-email">{{ user.email }}</div>
+        </div>
+      </div>
+      <a href="{{ url_for('profile') }}" class="profile-menu-item {% if request.endpoint == 'profile' %}active{% endif %}">
+        내 정보
+      </a>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- 커스텀 커서 -->
   <div class="custom-cursor"></div>
@@ -225,6 +255,26 @@
         img.style.cursor = 'zoom-in';
         img.addEventListener('click', () => openImageModal(img.src, img.alt));
       });
+    });
+
+    // 프로필 메뉴 토글
+    function toggleProfileMenu() {
+      const menu = document.getElementById('profileMenu');
+      if (menu) {
+        menu.classList.toggle('show');
+      }
+    }
+
+    // 프로필 메뉴 외부 클릭 시 닫기
+    document.addEventListener('click', (e) => {
+      const profileButton = document.getElementById('profileButton');
+      const profileMenu = document.getElementById('profileMenu');
+      
+      if (profileButton && profileMenu) {
+        if (!profileButton.contains(e.target) && !profileMenu.contains(e.target)) {
+          profileMenu.classList.remove('show');
+        }
+      }
     });
   </script>
 </body>
