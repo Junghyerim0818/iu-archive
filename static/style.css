@@ -226,7 +226,7 @@ h1.iu-title {
 /* 아카이브 날짜별 아코디언 */
 .archive-container {
   max-width: 800px;
-  margin: 2rem auto;
+  margin: 5rem auto;
 }
 
 .date-accordion {
@@ -235,9 +235,8 @@ h1.iu-title {
 
 .year-item, .month-item, .day-item {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
   overflow: hidden;
 }
 
@@ -287,7 +286,8 @@ h1.iu-title {
 }
 
 .month-list, .day-list {
-  padding: 20px;
+  padding-left: 20px;
+  padding-right: 5px;
 }
 
 .day-content {
@@ -560,6 +560,28 @@ h1.iu-title {
   outline: none;
   border-color: rgba(255, 255, 255, 0.4);
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* 날짜 입력 필드 달력 아이콘 스타일 */
+.form-group input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.form-group input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Firefox용 달력 아이콘 */
+.form-group input[type="date"]::-moz-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.form-group input[type="date"]::-moz-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 .form-group small {
