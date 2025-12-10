@@ -63,15 +63,6 @@
     </div>
   </div>
 
-  <nav class="floating-menu" id="floatingMenu">
-    <a href="{{ url_for('archive') }}" class="menu-item {% if request.endpoint == 'archive' %}active{% endif %}">아카이브</a>
-    {% if user %}
-      <a href="{{ url_for('upload') }}" class="menu-item {% if request.endpoint == 'upload' %}active{% endif %}">업로드</a>
-      {% if user.is_admin %}
-        <a href="{{ url_for('admin_pending') }}" class="menu-item {% if request.endpoint == 'admin_pending' %}active{% endif %}">관리 승인</a>
-      {% endif %}
-    {% endif %}
-  </nav>
 
   <!-- 우측 하단 프로필/로그인 버튼 -->
   <div class="profile-button-container">

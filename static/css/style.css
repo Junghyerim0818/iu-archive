@@ -452,13 +452,6 @@ h1.iu-title {
   transform: translateY(30px);
   transition: opacity 0.8s ease, transform 0.8s ease, visibility 0.8s ease;
   pointer-events: none;
-  background: linear-gradient(to bottom, 
-    rgba(202, 204, 207, 0.4) 0%,
-    rgba(202, 204, 207, 0.4) 10%,
-    rgba(202, 204, 207, 0.4) 30%,
-    rgba(202, 204, 207, 0.4) 60%,
-    var(--bg-dark) 100% 
-  );
   z-index: 1;
   box-sizing: border-box;
   overflow-y: auto;
@@ -602,8 +595,10 @@ h1.iu-title {
   transform: translateX(-50%);
   z-index: 100;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 16px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -639,6 +634,20 @@ h1.iu-title {
 
 .cta-button:hover svg {
   transform: rotate(90deg);
+}
+
+.cta-button-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.cta-button-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.cta-button-secondary:hover svg {
+  transform: translateX(3px);
 }
 
 /* 컨테이너 */
@@ -1776,11 +1785,12 @@ h1.iu-title {
   }
 
   .cta-container-top {
-    top: 80px;
+    top: 60px;
+    gap: 12px;
   }
 
   .cta-button {
-    padding: 14px 28px;
+    padding: 12px 24px;
     font-size: 16px;
   }
 }

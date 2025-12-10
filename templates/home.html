@@ -56,13 +56,19 @@
 
   <!-- 클릭 시 나타나는 모자이크 섹션 -->
   <div class="mosaic-section" id="mosaicSection">
-    <!-- 아카이브 추가하기 버튼 (상단에 위치) -->
+    <!-- 버튼 컨테이너 (상단에 위치) -->
     <div class="cta-container-top">
       <a href="{% if user %}{{ url_for('upload') }}{% else %}{{ url_for('login') }}{% endif %}" class="cta-button">
         <span>아카이브 추가하기</span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </a>
+      <a href="{{ url_for('archive') }}" class="cta-button cta-button-secondary">
+        <span>아카이브 보러가기</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
         </svg>
       </a>
     </div>
@@ -96,7 +102,6 @@
     const iuContainer = document.getElementById('iuContainer');
     const iuTitle = document.getElementById('iuTitle');
     const mosaicSection = document.getElementById('mosaicSection');
-    const floatingMenu = document.getElementById('floatingMenu');
     
     // 타이틀 페이드 아웃
     if (iuContainer && iuTitle) {
@@ -109,17 +114,11 @@
       }, 800);
     }
     
-    // 모자이크와 메뉴 페이드 인
+    // 모자이크 페이드 인
     if (mosaicSection) {
       setTimeout(() => {
         mosaicSection.classList.add('visible');
       }, 300);
-    }
-    
-    if (floatingMenu) {
-      setTimeout(() => {
-        floatingMenu.classList.add('visible');
-      }, 400);
     }
     
     // 이벤트 리스너 제거
