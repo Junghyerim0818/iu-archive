@@ -403,6 +403,53 @@ def archive():
     )
 
 
+@app.route("/api/archive/photos")
+def api_archive_photos():
+    """무한 스크롤을 위한 랜덤 사진 API"""
+    import random
+    
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 30, type=int)
+    
+    # 모든 승인된 사진 가져오기
+    all_approved = Photo.query.filter_by(status="approved").all()
+    
+    if not all_approved:
+        return jsonify({
+            "photos": [],
+            "has_more": False,
+            "page": page
+        })
+    
+    # 매번 랜덤으로 섞기 (새로운 순서 제공)
+    shuffled = all_approved.copy()
+    random.shuffle(shuffled)
+    
+    # 페이지네이션
+    start = (page - 1) * per_page
+    end = start + per_page
+    photos_page = shuffled[start:end]
+    
+    # 사진 데이터 포맷팅
+    photos_data = []
+    for photo in photos_page:
+        photos_data.append({
+            "id": photo.id,
+            "url": build_file_url(photo),
+            "event_name": photo.event_name or "기타",
+            "taken_date": photo.taken_date.isoformat() if photo.taken_date else None
+        })
+    
+    has_more = end < len(shuffled)
+    
+    return jsonify({
+        "photos": photos_data,
+        "has_more": has_more,
+        "page": page,
+        "total": len(all_approved)
+    })
+
+
 @app.route("/files/<path:filename>")
 def files(filename):
     if app.config["STORAGE_BACKEND"] == "gcs":

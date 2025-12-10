@@ -54,85 +54,32 @@
 	</svg>
   </div>
 
-  <!-- 클릭 시 나타나는 모자이크 섹션 -->
-  <div class="mosaic-section" id="mosaicSection">
-    <!-- 버튼 컨테이너 (상단에 위치) -->
-    <div class="cta-container-top">
-      <a href="{% if user %}{{ url_for('upload') }}{% else %}{{ url_for('login') }}{% endif %}" class="cta-button">
-        <span>아카이브 추가하기</span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </a>
-      <a href="{{ url_for('archive') }}" class="cta-button">
-        <span>아카이브 보러가기</span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M5 12h14M12 5l7 7-7 7"/>
-        </svg>
-      </a>
-    </div>
-    
-    <div class="mosaic-container" id="mosaicContainer">
-      {% if random_photos %}
-        {% for photo in random_photos %}
-          <div class="mosaic-item" style="--delay: {{ loop.index0 * 0.05 }}s">
-            <img src="{{ file_url(photo) }}" alt="{{ photo.original_name }}" loading="lazy" onclick="openImageModal('{{ file_url(photo) }}', '{{ photo.original_name }}')">
-          </div>
-        {% endfor %}
-      {% endif %}
-    </div>
+  <!-- 버튼 컨테이너 -->
+  <div class="cta-container-top" id="ctaContainer">
+    <a href="{% if user %}{{ url_for('upload') }}{% else %}{{ url_for('login') }}{% endif %}" class="cta-button">
+      <span>아카이브 추가하기</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </a>
+    <a href="{{ url_for('archive') }}" class="cta-button">
+      <span>아카이브 보러가기</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
   </div>
 
 <script>
-  let isActivated = false;
-  
-  // 클릭/터치 이벤트 핸들러
-  function handleActivation(event) {
-    // 이미 활성화되었으면 리턴
-    if (isActivated) return;
-    
-    // 링크나 버튼 클릭은 무시
-    if (event.target.closest('a') || event.target.closest('button')) {
-      return;
-    }
-    
-    isActivated = true;
-    
-    const iuContainer = document.getElementById('iuContainer');
-    const iuTitle = document.getElementById('iuTitle');
-    const mosaicSection = document.getElementById('mosaicSection');
-    
-    // 타이틀 페이드 아웃
-    if (iuContainer && iuTitle) {
-      iuContainer.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
-      iuContainer.style.opacity = '0';
-      iuContainer.style.transform = 'translateY(-20px)';
-      
-      setTimeout(() => {
-        iuContainer.style.visibility = 'hidden';
-      }, 800);
-    }
-    
-    // 모자이크 페이드 인
-    if (mosaicSection) {
-      setTimeout(() => {
-        mosaicSection.classList.add('visible');
-      }, 300);
-    }
-    
-    // 이벤트 리스너 제거
-    document.removeEventListener('click', handleActivation);
-    document.removeEventListener('touchstart', handleActivation);
-  }
-  
-  // 초기 이벤트 리스너 추가
+  // 페이지 로드 후 1초 뒤 버튼 표시
   window.addEventListener('load', function() {
-    // 약간의 지연 후 클릭 이벤트 활성화 (초기 로드 방해 방지)
-    setTimeout(() => {
-      document.addEventListener('click', handleActivation, { once: true });
-      document.addEventListener('touchstart', handleActivation, { once: true });
-    }, 500);
+    const ctaContainer = document.getElementById('ctaContainer');
+    if (ctaContainer) {
+      setTimeout(() => {
+        ctaContainer.classList.add('visible');
+      }, 1000);
+    }
   });
 </script>
 {% endblock %}

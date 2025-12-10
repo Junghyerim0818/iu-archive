@@ -111,7 +111,6 @@ body.home-page {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.8s ease, transform 0.8s ease, visibility 0.8s ease;
 }
 
 h5.iu {
@@ -211,50 +210,6 @@ h1.iu-title {
 }
 
 
-/* 상단 중앙 메뉴 */
-.floating-menu {
-  position: fixed;
-  top: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 30px;
-  padding: 8px;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.8s ease, visibility 0.8s ease;
-}
-
-.floating-menu.visible {
-  opacity: 1;
-  visibility: visible;
-}
-
-.menu-item {
-  color: var(--text-white);
-  text-decoration: none;
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.menu-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--text-white);
-}
-
-.menu-item.active {
-  background: rgba(255, 255, 255, 0.3);
-  color: var(--text-white);
-}
 
 /* 우측 하단 프로필 버튼 */
 .profile-button-container {
@@ -439,158 +394,10 @@ h1.iu-title {
   padding: 0 8px;
 }
 
-/* 홈 화면 모자이크 섹션 */
-.mosaic-section {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100vh;
-  padding: 0;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(30px);
-  transition: opacity 0.8s ease, transform 0.8s ease, visibility 0.8s ease;
-  pointer-events: none;
-  z-index: 1;
-  box-sizing: border-box;
-  overflow-y: auto;
-}
-
-.mosaic-section.visible {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-/* 스크롤에 따른 점진적 표시를 위한 클래스들 */
-.mosaic-section[data-opacity="0"] {
-  opacity: 0;
-  transform: translateY(30px);
-}
-
-.mosaic-section[data-opacity="0.1"] {
-  opacity: 0.1;
-  transform: translateY(27px);
-}
-
-.mosaic-section[data-opacity="0.2"] {
-  opacity: 0.2;
-  transform: translateY(24px);
-}
-
-.mosaic-section[data-opacity="0.3"] {
-  opacity: 0.3;
-  transform: translateY(21px);
-}
-
-.mosaic-section[data-opacity="0.4"] {
-  opacity: 0.4;
-  transform: translateY(18px);
-}
-
-.mosaic-section[data-opacity="0.5"] {
-  opacity: 0.5;
-  transform: translateY(15px);
-}
-
-.mosaic-section[data-opacity="0.6"] {
-  opacity: 0.6;
-  transform: translateY(12px);
-}
-
-.mosaic-section[data-opacity="0.7"] {
-  opacity: 0.7;
-  transform: translateY(9px);
-}
-
-.mosaic-section[data-opacity="0.8"] {
-  opacity: 0.8;
-  transform: translateY(6px);
-}
-
-.mosaic-section[data-opacity="0.9"] {
-  opacity: 0.9;
-  transform: translateY(3px);
-}
-
-.mosaic-section[data-opacity="1"] {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.mosaic-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0;
-  width: 100%;
-  margin: 0;
-  padding: 120px 0 80px 0;
-  box-sizing: border-box;
-}
-
-.mosaic-item {
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: 0;
-  opacity: 0;
-  transform: scale(0.8);
-  animation: mosaicFadeIn 0.6s ease forwards;
-  animation-delay: var(--delay, 0s);
-  cursor: pointer;
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.mosaic-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.mosaic-item:hover img {
-  transform: scale(1.1);
-}
-
-.mosaic-item::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0);
-  transition: background 0.3s ease;
-}
-
-.mosaic-item:hover::after {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-@keyframes mosaicFadeIn {
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* CTA 버튼 컨테이너 */
-.cta-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  margin-top: 50%;
-  box-sizing: border-box;
-}
-
-/* CTA 버튼 컨테이너 (상단) */
+/* 버튼 컨테이너 (상단) */
 .cta-container-top {
-  position: absolute;
-  top: 100px;
+  position: fixed;
+  top: 30%;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -601,7 +408,16 @@ h1.iu-title {
   gap: 16px;
   width: 100%;
   box-sizing: border-box;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.8s ease, visibility 0.8s ease;
 }
+
+.cta-container-top.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
 
 .cta-button {
   display: inline-flex;
@@ -636,25 +452,147 @@ h1.iu-title {
   transform: rotate(90deg);
 }
 
-.cta-button-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.cta-button-secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.4);
-}
-
-.cta-button-secondary:hover svg {
-  transform: translateX(3px);
-}
-
 /* 컨테이너 */
 .container {
   min-height: 100vh;
   position: relative;
   z-index: 2;
+}
+
+/* 아카이브 뷰 전환 */
+.archive-wrapper {
+  position: relative;
+  min-height: 100vh;
+  padding-top: 5rem;
+}
+
+.archive-view-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 8px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: var(--text-gray);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.view-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-white);
+}
+
+.view-toggle-btn.active {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--text-white);
+}
+
+.view-toggle-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* 모자이크 뷰 */
+.archive-mosaic-view {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.archive-mosaic-view .mosaic-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 2px;
+  padding: 0;
+  margin: 0;
+}
+
+.mosaic-photo-item {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.3s ease, z-index 0.3s ease;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mosaic-photo-item:hover {
+  transform: scale(1.05);
+  z-index: 10;
+}
+
+.mosaic-photo-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mosaic-photo-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  padding: 12px;
+  color: var(--text-white);
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mosaic-photo-item:hover .mosaic-photo-info {
+  opacity: 1;
+}
+
+.loading-indicator {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-gray);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 16px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--text-white);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-indicator p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* 날짜별 리스트 뷰 */
+.archive-list-view {
+  width: 100%;
 }
 
 /* 아카이브 날짜별 아코디언 */
@@ -1690,19 +1628,32 @@ h1.iu-title {
     top: 8rem;
   }
 
-  .floating-menu {
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    justify-content: center;
-    max-width: 90%;
+  .archive-view-toggle {
+    top: 10px;
+    right: 10px;
     padding: 6px;
+    gap: 4px;
   }
 
-  .menu-item {
-    padding: 8px 16px;
-    font-size: 13px;
+  .view-toggle-btn {
+    padding: 8px 12px;
+    font-size: 12px;
   }
+
+  .view-toggle-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .view-toggle-btn span {
+    display: none;
+  }
+
+  .archive-mosaic-view .mosaic-container {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1px;
+  }
+
 
   .container {
     padding: 20px;
@@ -1774,18 +1725,8 @@ h1.iu-title {
     padding: 0 4px;
   }
 
-  .mosaic-section {
-    padding: 0;
-  }
-
-  .mosaic-container {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 0;
-    padding: 100px 0 60px 0;
-  }
-
   .cta-container-top {
-    top: 60px;
+    top: 25%;
     gap: 12px;
   }
 
