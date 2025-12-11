@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
-<body>
-  <svg class="wave-svg" version="1.1" xmlns="http://www.w3.org/2000/svg"
+  <!-- 파도 컨테이너 -->
+  <div class="wave-container" id="waveContainer">
+    <svg class="wave-svg" version="1.1" xmlns="http://www.w3.org/2000/svg"
 		xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
 		<defs>
 			<linearGradient id="bg">
@@ -51,6 +52,35 @@
 			</use>
 		</g>
 	</svg>
-</body>
+  </div>
+
+  <!-- 버튼 컨테이너 -->
+  <div class="cta-container-top" id="ctaContainer">
+    <a href="{% if user %}{{ url_for('upload') }}{% else %}{{ url_for('login') }}{% endif %}" class="cta-button">
+      <span>아카이브 추가하기</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </a>
+    <a href="{{ url_for('archive') }}" class="cta-button">
+      <span>아카이브 보러가기</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
+  </div>
+
+<script>
+  // 페이지 로드 후 1초 뒤 버튼 표시
+  window.addEventListener('load', function() {
+    const ctaContainer = document.getElementById('ctaContainer');
+    if (ctaContainer) {
+      setTimeout(() => {
+        ctaContainer.classList.add('visible');
+      }, 1000);
+    }
+  });
+</script>
 {% endblock %}
 

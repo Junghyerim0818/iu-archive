@@ -1,59 +1,131 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="archive-container">
-  {% if years_dict %}
-    {% for year, months in years_dict.items()|sort(reverse=True) %}
-      <div class="date-accordion">
-        <div class="year-item" data-year="{{ year }}">
-          <div class="year-header" onclick="toggleYear({{ year }})">
-            <span class="year-title">{{ year }}년</span>
-            <span class="expand-icon">▶</span>
-          </div>
-          <div class="year-content">
-            <div class="month-list">
-              {% for month, days in months.items()|sort(reverse=True) %}
-                <div class="month-item" data-month="{{ year }}-{{ month }}">
-                  <div class="month-header" onclick="toggleMonth({{ year }}, {{ month }})">
-                    <span class="month-title">{{ month }}월</span>
-                    <span class="expand-icon">▶</span>
-                  </div>
-                  <div class="month-content">
-                    <div class="day-list">
-                      {% for day, photos in days.items()|sort(reverse=True) %}
-                        <div class="day-item">
-                          <div class="day-header" onclick="toggleDay({{ year }}, {{ month }}, {{ day }})">
-                            <span class="day-title">{{ day }}일 ({{ photos|length }}개)</span>
-                            <span class="expand-icon">▶</span>
-                          </div>
-                          <div class="day-content" style="display: none;">
-                            {% for photo in photos %}
-                              <div class="photo-item">
-                                <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
-                                <div class="photo-info">
-                                  {{ photo.event_name or '기타' }}
-                                </div>
-                              </div>
-                            {% endfor %}
-                          </div>
-                        </div>
-                      {% endfor %}
-                    </div>
-                  </div>
-                </div>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      </div>
-    {% endfor %}
-  {% else %}
-    <div class="empty-state">
+<div class="archive-wrapper">
+  <!-- 뷰 전환 버튼 -->
+  <div class="archive-view-toggle">
+    <button class="view-toggle-btn active" data-view="mosaic" id="mosaicViewBtn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+      </svg>
+      <span>모자이크</span>
+    </button>
+    <button class="view-toggle-btn" data-view="list" id="listViewBtn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="8" y1="6" x2="21" y2="6"></line>
+        <line x1="8" y1="12" x2="21" y2="12"></line>
+        <line x1="8" y1="18" x2="21" y2="18"></line>
+        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+      </svg>
+      <span>날짜별</span>
+    </button>
+  </div>
+
+  <!-- 모자이크 뷰 -->
+  <div class="archive-mosaic-view" id="mosaicView">
+    <div class="mosaic-container" id="mosaicContainer"></div>
+    <div class="loading-indicator" id="loadingIndicator" style="display: none;">
+      <div class="loading-spinner"></div>
+      <p>사진을 불러오는 중...</p>
+    </div>
+    <div class="mosaic-empty-state" id="mosaicEmptyState" style="display: none;">
       <p>아직 승인된 사진이 없습니다.</p>
     </div>
-  {% endif %}
+  </div>
+
+  <!-- 날짜별 리스트 뷰 -->
+  <div class="archive-list-view" id="listView" style="display: none;">
+    <div class="archive-container">
+      {% if years_dict %}
+        {% for year, months in years_dict.items()|sort(reverse=True) %}
+          <div class="date-accordion">
+            <div class="year-item" data-year="{{ year }}">
+              <div class="year-header" onclick="toggleYear({{ year }})">
+                <span class="year-title">{{ year }}년</span>
+                <span class="expand-icon">▶</span>
+              </div>
+              <div class="year-content">
+                <div class="month-list">
+                  {% for month, days in months.items()|sort(reverse=True) %}
+                    <div class="month-item" data-month="{{ year }}-{{ month }}">
+                      <div class="month-header" onclick="toggleMonth({{ year }}, {{ month }})">
+                        <span class="month-title">{{ month }}월</span>
+                        <span class="expand-icon">▶</span>
+                      </div>
+                      <div class="month-content">
+                        <div class="day-list">
+                          {% for day, photos in days.items()|sort(reverse=True) %}
+                            <div class="day-item">
+                              <div class="day-header" onclick="toggleDay({{ year }}, {{ month }}, {{ day }})">
+                                <span class="day-title">{{ day }}일 ({{ photos|length }}개)</span>
+                                <span class="expand-icon">▶</span>
+                              </div>
+                              <div class="day-content" style="display: none;">
+                                {% for photo in photos %}
+                                  <div class="photo-item">
+                                    <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
+                                    <div class="photo-info">
+                                      {{ photo.event_name or '기타' }}
+                                    </div>
+                                  </div>
+                                {% endfor %}
+                              </div>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <p>아직 승인된 사진이 없습니다.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
 </div>
 
 <script>
+// 뷰 전환
+const mosaicViewBtn = document.getElementById('mosaicViewBtn');
+const listViewBtn = document.getElementById('listViewBtn');
+const mosaicView = document.getElementById('mosaicView');
+const listView = document.getElementById('listView');
+
+function switchView(view) {
+  if (view === 'mosaic') {
+    mosaicViewBtn.classList.add('active');
+    listViewBtn.classList.remove('active');
+    mosaicView.style.display = 'block';
+    listView.style.display = 'none';
+    // 모자이크 뷰로 전환 시 초기화
+    if (mosaicContainer.children.length === 0) {
+      currentPage = 1;
+      hasMore = true;
+      mosaicEmptyState.style.display = 'none';
+      loadMosaicPhotos();
+    }
+  } else {
+    mosaicViewBtn.classList.remove('active');
+    listViewBtn.classList.add('active');
+    mosaicView.style.display = 'none';
+    listView.style.display = 'block';
+  }
+}
+
+mosaicViewBtn.addEventListener('click', () => switchView('mosaic'));
+listViewBtn.addEventListener('click', () => switchView('list'));
+
+// 날짜별 뷰 토글 함수
 function toggleYear(year) {
   const yearItem = document.querySelector(`[data-year="${year}"]`);
   yearItem.classList.toggle('expanded');
@@ -74,5 +146,83 @@ function toggleDay(year, month, day) {
     event.currentTarget.parentElement.classList.remove('expanded');
   }
 }
+
+// 무한 스크롤 모자이크 뷰
+let currentPage = 1;
+let isLoading = false;
+let hasMore = true;
+const mosaicContainer = document.getElementById('mosaicContainer');
+const loadingIndicator = document.getElementById('loadingIndicator');
+const mosaicEmptyState = document.getElementById('mosaicEmptyState');
+
+function loadMosaicPhotos() {
+  if (isLoading || !hasMore) return;
+  
+  isLoading = true;
+  loadingIndicator.style.display = 'block';
+  mosaicEmptyState.style.display = 'none';
+  
+  fetch(`/api/archive/photos?page=${currentPage}&per_page=30`)
+    .then(response => response.json())
+    .then(data => {
+      // 첫 페이지이고 사진이 없을 때
+      if (currentPage === 1 && data.photos.length === 0) {
+        mosaicContainer.innerHTML = '';
+        mosaicEmptyState.style.display = 'block';
+        hasMore = false;
+      } else if (data.photos.length > 0) {
+        data.photos.forEach(photo => {
+          const photoItem = document.createElement('div');
+          photoItem.className = 'mosaic-photo-item';
+          photoItem.innerHTML = `
+            <img src="${photo.url}" alt="${photo.event_name}" loading="lazy">
+            <div class="mosaic-photo-info">${photo.event_name}</div>
+          `;
+          mosaicContainer.appendChild(photoItem);
+        });
+        
+        hasMore = data.has_more;
+        currentPage++;
+      } else {
+        hasMore = false;
+      }
+      
+      isLoading = false;
+      loadingIndicator.style.display = 'none';
+    })
+    .catch(error => {
+      console.error('Error loading photos:', error);
+      isLoading = false;
+      loadingIndicator.style.display = 'none';
+      // 에러 발생 시에도 빈 상태 표시
+      if (currentPage === 1 && mosaicContainer.children.length === 0) {
+        mosaicEmptyState.style.display = 'block';
+      }
+    });
+}
+
+// 스크롤 감지
+let scrollTimeout;
+function handleScroll() {
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    // 모자이크 뷰가 활성화되어 있고, 더 불러올 사진이 있을 때만
+    if (mosaicView.style.display !== 'none' && hasMore && !isLoading) {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // 하단에서 300px 전에 도달하면 다음 페이지 로드
+      if (documentHeight - (scrollTop + windowHeight) < 300) {
+        loadMosaicPhotos();
+      }
+    }
+  }, 100);
+}
+
+window.addEventListener('scroll', handleScroll);
+
+// 초기 로드 (모자이크 뷰가 기본)
+loadMosaicPhotos();
 </script>
 {% endblock %}
