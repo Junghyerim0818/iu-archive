@@ -235,6 +235,8 @@ h1.iu-title {
   overflow: hidden;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .profile-button:hover {
@@ -242,6 +244,13 @@ h1.iu-title {
   background: rgba(255, 255, 255, 0.15);
   transform: scale(1.05);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.profile-button:focus,
+.profile-button:active {
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transform: scale(0.95);
 }
 
 .profile-button-img {
@@ -279,6 +288,8 @@ h1.iu-title {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   color: var(--text-white);
   text-decoration: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .home-button:hover {
@@ -286,6 +297,13 @@ h1.iu-title {
   background: rgba(255, 255, 255, 0.15);
   transform: scale(1.05);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.home-button:focus,
+.home-button:active {
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transform: scale(0.95);
 }
 
 .home-button svg {
@@ -414,6 +432,8 @@ h1.iu-title {
   font-size: 14px;
   font-weight: 500;
   padding: 0;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .login-button:hover {
@@ -422,6 +442,13 @@ h1.iu-title {
   transform: scale(1.05);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
   color: var(--text-white);
+}
+
+.login-button:focus,
+.login-button:active {
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transform: scale(0.95);
 }
 
 .login-button svg {
