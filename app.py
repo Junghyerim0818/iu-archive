@@ -739,6 +739,64 @@ def upload():
 def admin_pending():
     if request.method == "POST":
         action = request.form.get("action")
+        
+        # 일괄 처리
+        if action in ("batch_approve", "batch_reject"):
+            photo_ids_str = request.form.get("photo_ids", "")
+            if not photo_ids_str:
+                flash("선택한 사진이 없습니다.", "error")
+                return redirect(url_for("admin_pending"))
+            
+            photo_ids = [int(id.strip()) for id in photo_ids_str.split(",") if id.strip()]
+            photos = Photo.query.filter(Photo.id.in_(photo_ids), Photo.status == "pending").all()
+            
+            if not photos:
+                flash("처리할 사진을 찾을 수 없습니다.", "error")
+                return redirect(url_for("admin_pending"))
+            
+            approved_count = 0
+            rejected_count = 0
+            
+            for photo in photos:
+                if action == "batch_approve":
+                    photo.status = "approved"
+                    approved_count += 1
+                elif action == "batch_reject":
+                    # 거부 시 파일 삭제
+                    try:
+                        if app.config["STORAGE_BACKEND"] == "gcs":
+                            blob = gcs_bucket.blob(photo.relative_path)
+                            if blob.exists():
+                                blob.delete()
+                                app.logger.info(f"GCS 파일 삭제 완료: {photo.relative_path}")
+                        else:
+                            upload_root = ensure_upload_folder()
+                            file_path = upload_root / photo.relative_path
+                            if file_path.exists():
+                                file_path.unlink()
+                                app.logger.info(f"로컬 파일 삭제 완료: {photo.relative_path}")
+                                try:
+                                    folder_path = file_path.parent
+                                    if not any(folder_path.iterdir()):
+                                        folder_path.rmdir()
+                                except:
+                                    pass
+                    except Exception as e:
+                        app.logger.error(f"파일 삭제 실패: {e}")
+                    
+                    photo.status = "rejected"
+                    rejected_count += 1
+            
+            db.session.commit()
+            
+            if action == "batch_approve":
+                flash(f"{approved_count}개의 사진이 승인되었습니다.", "success")
+            else:
+                flash(f"{rejected_count}개의 사진이 거절되었습니다.", "success")
+            
+            return redirect(url_for("admin_pending"))
+        
+        # 단일 처리 (기존 로직)
         photo_id = request.form.get("photo_id")
         photo = db.session.get(Photo, photo_id)
         if photo:

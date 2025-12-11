@@ -2027,12 +2027,143 @@ h1.iu-title {
   border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .admin-photo-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+.admin-photo-card.selected {
+  border-color: rgba(76, 175, 80, 0.5);
+  background: rgba(76, 175, 80, 0.1);
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+}
+
+.photo-checkbox-wrapper {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+}
+
+.photo-checkbox {
+  display: none;
+}
+
+.photo-checkbox-label {
+  display: block;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.photo-checkbox-label:hover {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.photo-checkbox:checked + .photo-checkbox-label {
+  background: rgba(76, 175, 80, 0.9);
+  border-color: #4caf50;
+}
+
+.photo-checkbox:checked + .photo-checkbox-label::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* 일괄 처리 버튼 */
+.admin-batch-actions {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px 24px;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  min-width: 400px;
+  justify-content: space-between;
+}
+
+.batch-actions-info {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-white);
+}
+
+.batch-actions-info span {
+  color: #4caf50;
+  font-size: 18px;
+}
+
+.batch-actions-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.batch-action-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.batch-approve-btn {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.batch-approve-btn:hover {
+  background: rgba(76, 175, 80, 0.3);
+  transform: translateY(-1px);
+}
+
+.batch-reject-btn {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.batch-reject-btn:hover {
+  background: rgba(244, 67, 54, 0.3);
+  transform: translateY(-1px);
+}
+
+.batch-cancel-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-white);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.batch-cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 .admin-photo-thumbnail {
@@ -2291,6 +2422,30 @@ h1.iu-title {
   .admin-photos-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 12px;
+  }
+
+  .admin-batch-actions {
+    left: 16px;
+    right: 16px;
+    transform: none;
+    min-width: auto;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .batch-actions-buttons {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .batch-action-btn {
+    width: 100%;
+  }
+
+  .photo-checkbox-label {
+    width: 20px;
+    height: 20px;
   }
 
   .admin-date-header {

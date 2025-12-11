@@ -11,6 +11,32 @@
       <span>대기 중인 업로드: <strong>{{ total_count }}개</strong></span>
     </div>
 
+    <!-- 일괄 처리 버튼 -->
+    <div class="admin-batch-actions" id="batchActions" style="display: none;">
+      <div class="batch-actions-info">
+        <span id="selectedCount">0</span>개 선택됨
+      </div>
+      <div class="batch-actions-buttons">
+        <form method="post" id="batchApproveForm" style="display: inline;">
+          <input type="hidden" name="action" value="batch_approve">
+          <input type="hidden" name="photo_ids" id="batchApproveIds" value="">
+          <button type="submit" class="batch-action-btn batch-approve-btn">
+            선택한 사진 승인
+          </button>
+        </form>
+        <form method="post" id="batchRejectForm" style="display: inline;">
+          <input type="hidden" name="action" value="batch_reject">
+          <input type="hidden" name="photo_ids" id="batchRejectIds" value="">
+          <button type="submit" class="batch-action-btn batch-reject-btn">
+            선택한 사진 거절
+          </button>
+        </form>
+        <button type="button" class="batch-action-btn batch-cancel-btn" onclick="clearSelection()">
+          선택 취소
+        </button>
+      </div>
+    </div>
+
     <div class="admin-date-groups">
       {% for date_group in organized_photos %}
         <div class="admin-date-section">
@@ -44,7 +70,11 @@
               <div class="admin-photos-container">
                 <div class="admin-photos-grid">
                 {% for photo in user_group.photos %}
-                  <div class="admin-photo-card">
+                  <div class="admin-photo-card" data-photo-id="{{ photo.id }}">
+                    <div class="photo-checkbox-wrapper">
+                      <input type="checkbox" class="photo-checkbox" id="photo_{{ photo.id }}" value="{{ photo.id }}" onchange="updateSelection()">
+                      <label for="photo_{{ photo.id }}" class="photo-checkbox-label"></label>
+                    </div>
                     <div class="admin-photo-thumbnail" onclick="openImageModal('{{ file_url(photo) }}', '{{ photo.event_name }}')">
                       <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
                       <div class="photo-overlay">
@@ -116,6 +146,43 @@ function toggleUserSection(header) {
   }
 }
 
+// 선택된 사진 추적
+function updateSelection() {
+  const checkboxes = document.querySelectorAll('.photo-checkbox:checked');
+  const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+  const batchActions = document.getElementById('batchActions');
+  const selectedCount = document.getElementById('selectedCount');
+  
+  if (selectedIds.length > 0) {
+    batchActions.style.display = 'flex';
+    selectedCount.textContent = selectedIds.length;
+    document.getElementById('batchApproveIds').value = selectedIds.join(',');
+    document.getElementById('batchRejectIds').value = selectedIds.join(',');
+    
+    // 선택된 사진 카드에 스타일 적용
+    document.querySelectorAll('.admin-photo-card').forEach(card => {
+      const checkbox = card.querySelector('.photo-checkbox');
+      if (checkbox && checkbox.checked) {
+        card.classList.add('selected');
+      } else {
+        card.classList.remove('selected');
+      }
+    });
+  } else {
+    batchActions.style.display = 'none';
+    document.querySelectorAll('.admin-photo-card').forEach(card => {
+      card.classList.remove('selected');
+    });
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll('.photo-checkbox').forEach(checkbox => {
+    checkbox.checked = false;
+  });
+  updateSelection();
+}
+
 // 페이지 로드 시 모든 사용자 섹션을 기본적으로 펼침
 document.addEventListener('DOMContentLoaded', function() {
   const userSections = document.querySelectorAll('.admin-user-section');
@@ -128,6 +195,21 @@ document.addEventListener('DOMContentLoaded', function() {
     section.classList.add('expanded');
     photosContainer.style.maxHeight = photosContainer.scrollHeight + 'px';
     expandIcon.style.transform = 'rotate(90deg)';
+  });
+  
+  // 일괄 처리 폼 제출 전 확인
+  document.getElementById('batchApproveForm').addEventListener('submit', function(e) {
+    const count = document.getElementById('selectedCount').textContent;
+    if (!confirm(`선택한 ${count}개의 사진을 승인하시겠습니까?`)) {
+      e.preventDefault();
+    }
+  });
+  
+  document.getElementById('batchRejectForm').addEventListener('submit', function(e) {
+    const count = document.getElementById('selectedCount').textContent;
+    if (!confirm(`선택한 ${count}개의 사진을 거절하시겠습니까?\n거절된 사진은 삭제됩니다.`)) {
+      e.preventDefault();
+    }
   });
 });
 </script>
