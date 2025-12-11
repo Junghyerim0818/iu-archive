@@ -591,7 +591,15 @@ def api_upload():
     
     # 파일 개수 체크
     if not user.is_admin and today_count + len(files) > MAX_FILES_PER_DAY:
-        return jsonify({"success": False, "error": f"오늘 업로드 한도에 도달했습니다. (최대 {MAX_FILES_PER_DAY}장)"}), 400
+        remaining = MAX_FILES_PER_DAY - today_count
+        return jsonify({
+            "success": False, 
+            "error": f"오늘 업로드 한도에 도달했습니다. (최대 {MAX_FILES_PER_DAY}장)",
+            "error_type": "file_limit_exceeded",
+            "today_count": today_count,
+            "max_files": MAX_FILES_PER_DAY,
+            "remaining": max(0, remaining)
+        }), 400
     
     # 파일 크기 체크 및 총 용량 계산
     total_new_size = 0
@@ -608,7 +616,14 @@ def api_upload():
         
         if not user.is_admin:
             if file_size > MAX_FILE_SIZE:
-                return jsonify({"success": False, "error": f"파일 크기가 너무 큽니다. ({file.filename}: 최대 {MAX_FILE_SIZE / (1024 * 1024):.0f}MB)"}), 400
+                return jsonify({
+                    "success": False, 
+                    "error": f"파일 크기가 너무 큽니다. ({file.filename}: 최대 {MAX_FILE_SIZE / (1024 * 1024):.0f}MB)",
+                    "error_type": "file_size_exceeded",
+                    "filename": file.filename,
+                    "file_size_mb": round(file_size / (1024 * 1024), 2),
+                    "max_size_mb": MAX_FILE_SIZE / (1024 * 1024)
+                }), 400
         
         total_new_size += file_size
         valid_files.append((file, file_size))
@@ -616,7 +631,15 @@ def api_upload():
     # 하루 총 용량 체크
     if not user.is_admin and today_total_size + total_new_size > MAX_SIZE_PER_DAY:
         remaining_mb = (MAX_SIZE_PER_DAY - today_total_size) / (1024 * 1024)
-        return jsonify({"success": False, "error": f"오늘 업로드 용량 한도에 도달했습니다. (남은 용량: {remaining_mb:.1f}MB)"}), 400
+        return jsonify({
+            "success": False, 
+            "error": f"오늘 업로드 용량 한도에 도달했습니다. (남은 용량: {remaining_mb:.1f}MB)",
+            "error_type": "size_limit_exceeded",
+            "today_total_size_mb": round(today_total_size / (1024 * 1024), 2),
+            "new_size_mb": round(total_new_size / (1024 * 1024), 2),
+            "max_size_mb": MAX_SIZE_PER_DAY / (1024 * 1024),
+            "remaining_mb": round(remaining_mb, 2)
+        }), 400
     
     # 파일들을 백그라운드로 처리
     # 파일 데이터를 먼저 모두 읽어서 메모리에 저장한 후, 즉시 응답 반환

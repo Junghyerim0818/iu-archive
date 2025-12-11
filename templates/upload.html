@@ -414,8 +414,18 @@ async function handleUpload() {
       body: formData,
       keepalive: true  // 페이지를 벗어나도 요청이 계속됨
     });
-    
-    const result = await response.json();
+
+    const contentType = response.headers.get('content-type');
+    let result = {};
+
+    // 응답이 JSON인지 확인 후 파싱
+    if (contentType && contentType.includes('application/json')) {
+      result = await response.json();
+    } else {
+      // 텍스트 응답 (예: Forbidden 등)
+      const text = await response.text();
+      result = { success: response.ok, error: text || `HTTP ${response.status}` };
+    }
     
     if (response.ok && result.success) {
       uploadInProgress = false;
@@ -426,30 +436,101 @@ async function handleUpload() {
       
       // 성공 메시지
       setTimeout(() => {
-        alert(result.message || `${result.count}개의 파일이 업로드 대기열에 추가되었습니다.\n\n페이지를 벗어나도 업로드는 계속됩니다.`);
+        alert(result.message || `${result.count || selectedFiles.length}개의 파일이 업로드 대기열에 추가되었습니다.\n\n페이지를 벗어나도 업로드는 계속됩니다.`);
         // 페이지 새로고침 (선택사항)
         window.location.reload();
       }, 1000);
     } else {
       uploadInProgress = false;
       window.removeEventListener('beforeunload', beforeUnloadHandler);
-      throw new Error(result.error || '업로드 실패');
+      
+      // 에러 메시지 처리
+      let errorMessage = result.error || `업로드 실패 (HTTP ${response.status})`;
+      let errorTitle = '업로드 실패';
+      
+      // 서버에서 반환한 추가 정보 활용
+      const errorType = result.error_type;
+      
+      // 에러 타입별로 구체적인 메시지 표시
+      if (response.status === 403) {
+        errorTitle = '권한 오류';
+        errorMessage = '업로드 권한이 없습니다.\n\n로그인 상태를 확인해주세요.';
+      } else if (response.status === 400) {
+        if (errorType === 'file_limit_exceeded') {
+          // 업로드 횟수 초과
+          errorTitle = '업로드 횟수 초과';
+          const todayCount = result.today_count || todayCount;
+          const maxFiles = result.max_files || 20;
+          const remaining = result.remaining || 0;
+          errorMessage = `오늘 업로드 한도에 도달했습니다.\n\n• 최대 업로드: ${maxFiles}장\n• 오늘 업로드: ${todayCount}장\n• 선택한 파일: ${selectedFiles.length}장\n• 남은 업로드 가능: ${remaining}장\n\n내일 다시 시도해주세요.`;
+        } else if (errorType === 'size_limit_exceeded') {
+          // 용량 초과
+          errorTitle = '용량 초과';
+          const todayTotalMB = result.today_total_size_mb || (usedSize / (1024 * 1024)).toFixed(2);
+          const newSizeMB = result.new_size_mb || (selectedFiles.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024)).toFixed(2);
+          const maxSizeMB = result.max_size_mb || 100;
+          const remainingMB = result.remaining_mb || '0';
+          errorMessage = `오늘 업로드 용량 한도에 도달했습니다.\n\n• 최대 용량: ${maxSizeMB}MB\n• 사용한 용량: ${todayTotalMB}MB\n• 선택한 파일 용량: ${newSizeMB}MB\n• 남은 용량: ${remainingMB}MB\n\n더 작은 파일을 선택하거나 내일 다시 시도해주세요.`;
+        } else if (errorType === 'file_size_exceeded') {
+          // 파일 크기 초과
+          errorTitle = '파일 크기 초과';
+          const fileName = result.filename || '알 수 없음';
+          const fileSizeMB = result.file_size_mb || '0';
+          const maxSizeMB = result.max_size_mb || 10;
+          errorMessage = `파일 크기가 너무 큽니다.\n\n• 파일명: ${fileName}\n• 파일 크기: ${fileSizeMB}MB\n• 최대 크기: ${maxSizeMB}MB\n• 개별 파일은 ${maxSizeMB}MB를 초과할 수 없습니다.\n\n더 작은 파일을 선택해주세요.`;
+        } else if (errorMessage.includes('파일을 선택')) {
+          errorTitle = '파일 없음';
+          errorMessage = '파일을 선택해주세요.';
+        } else if (errorMessage.includes('날짜 형식')) {
+          errorTitle = '날짜 오류';
+          errorMessage = '날짜 형식이 올바르지 않습니다.\n\n올바른 날짜를 선택해주세요.';
+        } else {
+          // 기타 400 오류
+          errorTitle = '요청 오류';
+          errorMessage = errorMessage || '요청이 올바르지 않습니다.';
+        }
+      } else if (response.status === 500) {
+        errorTitle = '서버 오류';
+        errorMessage = '서버에서 오류가 발생했습니다.\n\n잠시 후 다시 시도해주세요.';
+      } else if (response.status >= 500) {
+        errorTitle = '서버 오류';
+        errorMessage = `서버 오류가 발생했습니다. (HTTP ${response.status})\n\n잠시 후 다시 시도해주세요.`;
+      }
+      
+      // 경고 메시지 표시
+      alert(`[${errorTitle}]\n\n${errorMessage}`);
+      
+      uploadStatus.textContent = '오류 발생';
+      progressFill.style.width = '0%';
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span>업로드 시작</span><svg class="submit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
     }
   } catch (error) {
     uploadInProgress = false;
     window.removeEventListener('beforeunload', beforeUnloadHandler);
     
+    let errorTitle = '업로드 오류';
+    let errorMessage = '';
+    
     // 네트워크 오류인 경우에도 keepalive로 인해 서버에서 처리 중일 수 있음
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      uploadStatus.textContent = '네트워크 오류가 발생했지만, 서버에서 업로드가 계속 처리될 수 있습니다.';
-      alert('네트워크 연결에 문제가 있었지만, 서버에서 업로드가 계속 처리될 수 있습니다.\n잠시 후 페이지를 새로고침하여 확인해주세요.');
+      errorTitle = '네트워크 오류';
+      errorMessage = '네트워크 연결에 문제가 발생했습니다.\n\n서버에서 업로드가 계속 처리될 수 있습니다.\n잠시 후 페이지를 새로고침하여 확인해주세요.';
+      uploadStatus.textContent = '네트워크 오류 (서버 처리 중일 수 있음)';
+    } else if (error instanceof SyntaxError) {
+      errorTitle = '응답 처리 오류';
+      errorMessage = '서버 응답을 처리할 수 없습니다.\n\n서버 상태를 확인해주세요.\n잠시 후 다시 시도해주세요.';
+      uploadStatus.textContent = '응답 처리 오류';
+      progressFill.style.width = '0%';
     } else {
+      errorMessage = `예기치 않은 오류가 발생했습니다.\n\n오류 내용: ${error.message}\n\n잠시 후 다시 시도해주세요.`;
       uploadStatus.textContent = '오류 발생';
       progressFill.style.width = '0%';
-      alert('업로드 중 오류가 발생했습니다: ' + error.message);
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span>업로드 시작</span><svg class="submit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
     }
+    
+    alert(`[${errorTitle}]\n\n${errorMessage}`);
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<span>업로드 시작</span><svg class="submit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
   }
 }
 
