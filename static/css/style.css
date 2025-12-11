@@ -2028,6 +2028,7 @@ h1.iu-title {
   overflow: hidden;
   transition: all 0.3s ease;
   position: relative;
+  cursor: pointer;
 }
 
 .admin-photo-card:hover {
@@ -2047,6 +2048,41 @@ h1.iu-title {
   top: 8px;
   left: 8px;
   z-index: 10;
+}
+
+.photo-zoom-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.photo-zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+  transform: scale(1.1);
+}
+
+.photo-zoom-btn:active {
+  transform: scale(0.95);
+}
+
+.photo-zoom-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .photo-checkbox {
@@ -2172,7 +2208,7 @@ h1.iu-title {
   aspect-ratio: 1;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.05);
-  cursor: pointer;
+  pointer-events: none;
 }
 
 .admin-photo-thumbnail img {
@@ -2182,24 +2218,8 @@ h1.iu-title {
   transition: transform 0.3s ease;
 }
 
-.admin-photo-thumbnail:hover img {
+.admin-photo-card:hover .admin-photo-thumbnail img {
   transform: scale(1.05);
-}
-
-.photo-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  color: white;
-}
-
-.admin-photo-thumbnail:hover .photo-overlay {
-  opacity: 1;
 }
 
 .admin-photo-info {
