@@ -1207,7 +1207,7 @@ h1.iu-title {
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  background: linear-gradient(90deg, #81c784, #a5d6a7);
   border-radius: 3px;
   transition: width 0.3s ease;
 }
@@ -1802,8 +1802,8 @@ h1.iu-title {
 }
 
 .status-badge.approved {
-  background: rgba(76, 175, 80, 0.2);
-  color: #4caf50;
+  background: rgba(129, 199, 132, 0.2);
+  color: #81c784;
 }
 
 .status-badge.pending {
@@ -1812,8 +1812,8 @@ h1.iu-title {
 }
 
 .status-badge.rejected {
-  background: rgba(244, 67, 54, 0.2);
-  color: #f44336;
+  background: rgba(229, 115, 115, 0.2);
+  color: #e57373;
 }
 
 .empty-action-btn {
@@ -1831,6 +1831,48 @@ h1.iu-title {
 
 .empty-action-btn:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* 프로필 페이지 날짜별 그룹 */
+.profile-date-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.profile-date-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-date-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.profile-date-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-white);
+  margin: 0;
+}
+
+.profile-date-section .date-photo-count {
+  font-size: 13px;
+  color: var(--text-gray);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.profile-date-section .photo-list {
+  margin-top: 0;
 }
 
 /* 관리자 페이지 스타일 */
@@ -2038,9 +2080,9 @@ h1.iu-title {
 }
 
 .admin-photo-card.selected {
-  border-color: rgba(76, 175, 80, 0.5);
-  background: rgba(76, 175, 80, 0.1);
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+  border-color: rgba(129, 199, 132, 0.5);
+  background: rgba(129, 199, 132, 0.1);
+  box-shadow: 0 0 0 2px rgba(129, 199, 132, 0.3);
 }
 
 .photo-checkbox-wrapper {
@@ -2107,8 +2149,8 @@ h1.iu-title {
 }
 
 .photo-checkbox:checked + .photo-checkbox-label {
-  background: rgba(76, 175, 80, 0.9);
-  border-color: #4caf50;
+  background: rgba(129, 199, 132, 0.9);
+  border-color: #81c784;
 }
 
 .photo-checkbox:checked + .photo-checkbox-label::after {
@@ -2149,7 +2191,7 @@ h1.iu-title {
 }
 
 .batch-actions-info span {
-  color: #4caf50;
+  color: #81c784;
   font-size: 18px;
 }
 
@@ -2170,24 +2212,24 @@ h1.iu-title {
 }
 
 .batch-approve-btn {
-  background: rgba(76, 175, 80, 0.2);
-  color: #4caf50;
-  border: 1px solid rgba(76, 175, 80, 0.3);
+  background: rgba(129, 199, 132, 0.2);
+  color: #81c784;
+  border: 1px solid rgba(129, 199, 132, 0.3);
 }
 
 .batch-approve-btn:hover {
-  background: rgba(76, 175, 80, 0.3);
+  background: rgba(129, 199, 132, 0.3);
   transform: translateY(-1px);
 }
 
 .batch-reject-btn {
-  background: rgba(244, 67, 54, 0.2);
-  color: #f44336;
-  border: 1px solid rgba(244, 67, 54, 0.3);
+  background: rgba(229, 115, 115, 0.2);
+  color: #e57373;
+  border: 1px solid rgba(229, 115, 115, 0.3);
 }
 
 .batch-reject-btn:hover {
-  background: rgba(244, 67, 54, 0.3);
+  background: rgba(229, 115, 115, 0.3);
   transform: translateY(-1px);
 }
 
@@ -2272,24 +2314,24 @@ h1.iu-title {
 }
 
 .approve-btn {
-  background: rgba(76, 175, 80, 0.2);
-  color: #4caf50;
-  border: 1px solid rgba(76, 175, 80, 0.3);
+  background: rgba(129, 199, 132, 0.2);
+  color: #81c784;
+  border: 1px solid rgba(129, 199, 132, 0.3);
 }
 
 .approve-btn:hover {
-  background: rgba(76, 175, 80, 0.3);
+  background: rgba(129, 199, 132, 0.3);
   transform: translateY(-2px);
 }
 
 .reject-btn {
-  background: rgba(244, 67, 54, 0.2);
-  color: #f44336;
-  border: 1px solid rgba(244, 67, 54, 0.3);
+  background: rgba(229, 115, 115, 0.2);
+  color: #e57373;
+  border: 1px solid rgba(229, 115, 115, 0.3);
 }
 
 .reject-btn:hover {
-  background: rgba(244, 67, 54, 0.3);
+  background: rgba(229, 115, 115, 0.3);
   transform: translateY(-2px);
 }
 
@@ -2478,6 +2520,20 @@ h1.iu-title {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  .profile-date-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .profile-date-header h3 {
+    font-size: 16px;
+  }
+
+  .profile-date-section .date-photo-count {
+    font-size: 12px;
   }
 
   .photo-list-item {

@@ -40,42 +40,52 @@
 
   <div class="upload-history-section">
     <h2>업로드 기록</h2>
-    {% if photos %}
-      <div class="photo-list">
-        {% for photo in photos %}
-          <div class="photo-list-item">
-            <div class="photo-thumbnail">
-              {% if photo.status == 'rejected' %}
-                <div class="photo-thumbnail-placeholder">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="9" y1="3" x2="9" y2="21"></line>
-                    <line x1="3" y1="9" x2="21" y2="9"></line>
-                  </svg>
-                  <span>거절됨</span>
+    {% if organized_photos %}
+      <div class="profile-date-groups">
+        {% for date_group in organized_photos %}
+          <div class="profile-date-section">
+            <div class="profile-date-header">
+              <h3>{{ date_group.date.strftime('%Y년 %m월 %d일') }}</h3>
+              <span class="date-photo-count">{{ date_group.total_count }}개</span>
+            </div>
+            <div class="photo-list">
+              {% for photo in date_group.photos %}
+                <div class="photo-list-item">
+                  <div class="photo-thumbnail">
+                    {% if photo.status == 'rejected' %}
+                      <div class="photo-thumbnail-placeholder">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                          <line x1="9" y1="3" x2="9" y2="21"></line>
+                          <line x1="3" y1="9" x2="21" y2="9"></line>
+                        </svg>
+                        <span>거절됨</span>
+                      </div>
+                    {% else %}
+                      <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'photo-thumbnail-placeholder\'><svg width=\'40\' height=\'40\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\' ry=\'2\'></rect><line x1=\'9\' y1=\'3\' x2=\'9\' y2=\'21\'></line><line x1=\'3\' y1=\'9\' x2=\'21\' y2=\'9\'></line></svg><span>이미지 없음</span></div>';">
+                    {% endif %}
+                  </div>
+                  <div class="photo-details">
+                    <div class="photo-title">{{ photo.event_name or '기타' }}</div>
+                    <div class="photo-meta">
+                      <span>{{ photo.taken_date }}</span>
+                      <span>•</span>
+                      <span>{{ photo.original_name }}</span>
+                    </div>
+                  </div>
+                  <div class="photo-status">
+                    <span class="status-badge {{ photo.status }}">
+                      {% if photo.status == 'approved' %}
+                        승인됨
+                      {% elif photo.status == 'pending' %}
+                        대기중
+                      {% else %}
+                        거절됨
+                      {% endif %}
+                    </span>
+                  </div>
                 </div>
-              {% else %}
-                <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'photo-thumbnail-placeholder\'><svg width=\'40\' height=\'40\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\' ry=\'2\'></rect><line x1=\'9\' y1=\'3\' x2=\'9\' y2=\'21\'></line><line x1=\'3\' y1=\'9\' x2=\'21\' y2=\'9\'></line></svg><span>이미지 없음</span></div>';">
-              {% endif %}
-            </div>
-            <div class="photo-details">
-              <div class="photo-title">{{ photo.event_name or '기타' }}</div>
-              <div class="photo-meta">
-                <span>{{ photo.taken_date }}</span>
-                <span>•</span>
-                <span>{{ photo.original_name }}</span>
-              </div>
-            </div>
-            <div class="photo-status">
-              <span class="status-badge {{ photo.status }}">
-                {% if photo.status == 'approved' %}
-                  승인됨
-                {% elif photo.status == 'pending' %}
-                  대기중
-                {% else %}
-                  거절됨
-                {% endif %}
-              </span>
+              {% endfor %}
             </div>
           </div>
         {% endfor %}

@@ -888,10 +888,30 @@ def profile():
     my_photos = (
         Photo.query.filter_by(user_id=user.id)
         .order_by(Photo.created_at.desc())
-        .limit(20)
         .all()
     )
-    return render_template("profile.html", user=user, photos=my_photos)
+    
+    # 업로드 날짜별로 그룹화
+    from collections import defaultdict
+    photos_by_date = defaultdict(list)
+    
+    for photo in my_photos:
+        upload_date = photo.created_at.date() if photo.created_at else date.today()
+        photos_by_date[upload_date].append(photo)
+    
+    # 날짜별로 정렬 (최신순)
+    sorted_dates = sorted(photos_by_date.keys(), reverse=True)
+    
+    # 날짜별로 정리된 데이터 구조 생성
+    organized_photos = []
+    for upload_date in sorted_dates:
+        organized_photos.append({
+            'date': upload_date,
+            'photos': photos_by_date[upload_date],
+            'total_count': len(photos_by_date[upload_date])
+        })
+    
+    return render_template("profile.html", user=user, organized_photos=organized_photos, total_count=len(my_photos))
 
 
 def build_file_url(photo: Photo) -> str:
