@@ -129,27 +129,35 @@ def ensure_photo_columns():
     """Photo 테이블에 필요한 컬럼이 있는지 확인하고 없으면 추가"""
     try:
         uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        columns_to_check = ['file_size', 'tags']
+        
         if uri.startswith("postgres"):
             # PostgreSQL: 컬럼 존재 여부 확인
-            result = db.session.execute(text("""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = 'photo' AND column_name = 'file_size'
-            """))
-            if not result.fetchone():
-                # file_size 컬럼이 없으면 추가
-                db.session.execute(text("ALTER TABLE photo ADD COLUMN file_size INTEGER"))
-                db.session.commit()
-                app.logger.info("Photo 테이블에 file_size 컬럼 추가 완료")
+            for col_name in columns_to_check:
+                result = db.session.execute(text(f"""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'photo' AND column_name = '{col_name}'
+                """))
+                if not result.fetchone():
+                    if col_name == 'file_size':
+                        db.session.execute(text("ALTER TABLE photo ADD COLUMN file_size INTEGER"))
+                    elif col_name == 'tags':
+                        db.session.execute(text("ALTER TABLE photo ADD COLUMN tags VARCHAR(512)"))
+                    db.session.commit()
+                    app.logger.info(f"Photo 테이블에 {col_name} 컬럼 추가 완료")
         elif uri.startswith("sqlite"):
             # SQLite: 컬럼 존재 여부 확인
             result = db.session.execute(text("PRAGMA table_info(photo)"))
             columns = [row[1] for row in result.fetchall()]
-            if 'file_size' not in columns:
-                # SQLite는 ALTER TABLE ADD COLUMN 지원
-                db.session.execute(text("ALTER TABLE photo ADD COLUMN file_size INTEGER"))
-                db.session.commit()
-                app.logger.info("Photo 테이블에 file_size 컬럼 추가 완료")
+            for col_name in columns_to_check:
+                if col_name not in columns:
+                    if col_name == 'file_size':
+                        db.session.execute(text("ALTER TABLE photo ADD COLUMN file_size INTEGER"))
+                    elif col_name == 'tags':
+                        db.session.execute(text("ALTER TABLE photo ADD COLUMN tags VARCHAR(512)"))
+                    db.session.commit()
+                    app.logger.info(f"Photo 테이블에 {col_name} 컬럼 추가 완료")
     except Exception as e:
         db.session.rollback()
         app.logger.warning(f"컬럼 확인/추가 실패 (이미 존재할 수 있음): {e}")
@@ -214,8 +222,9 @@ class Photo(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     relative_path = db.Column(db.String(512), nullable=False)
     original_name = db.Column(db.String(255))
-    event_name = db.Column(db.String(255))
-    taken_date = db.Column(db.Date, nullable=False)
+    event_name = db.Column(db.String(255))  # 파일명 저장 (하위 호환성 유지)
+    taken_date = db.Column(db.Date, nullable=False)  # 업로드일 저장 (하위 호환성 유지)
+    tags = db.Column(db.String(512))  # 태그 (쉼표로 구분)
     status = db.Column(db.String(32), default="pending")  # pending/approved/rejected
     file_size = db.Column(db.Integer)  # 파일 크기 (bytes)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -303,7 +312,7 @@ def ensure_upload_folder() -> Path:
 
 def process_file_upload_async(file_data: bytes, filename: str, relative_path: str, 
                               user_id: int, event_name: str, taken_date: date, 
-                              file_size: int, content_type: str):
+                              tags: Optional[str], file_size: int, content_type: str):
     """백그라운드에서 파일을 실제로 저장하는 함수"""
     try:
         with app.app_context():
@@ -334,6 +343,7 @@ def process_file_upload_async(file_data: bytes, filename: str, relative_path: st
                 "original_name": filename,
                 "event_name": event_name,
                 "taken_date": taken_date,
+                "tags": tags,
                 "status": "pending",
                 "file_size": file_size,
             }
@@ -435,9 +445,17 @@ def api_archive_photos():
     
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 30, type=int)
+    tag_filter = request.args.get("tag")  # 태그 필터
     
     # 모든 승인된 사진 가져오기
-    all_approved = Photo.query.filter_by(status="approved").all()
+    query = Photo.query.filter_by(status="approved")
+    
+    # 태그 필터 적용
+    if tag_filter:
+        # 태그가 포함된 사진 검색 (쉼표로 구분된 태그 문자열에서 검색)
+        query = query.filter(Photo.tags.contains(tag_filter))
+    
+    all_approved = query.all()
     
     if not all_approved:
         return jsonify({
@@ -458,11 +476,13 @@ def api_archive_photos():
     # 사진 데이터 포맷팅
     photos_data = []
     for photo in photos_page:
+        tags_list = photo.tags.split(",") if photo.tags else []
         photos_data.append({
             "id": photo.id,
             "url": build_file_url(photo),
             "event_name": photo.event_name or "기타",
-            "taken_date": photo.taken_date.isoformat() if photo.taken_date else None
+            "taken_date": photo.taken_date.isoformat() if photo.taken_date else None,
+            "tags": tags_list
         })
     
     has_more = end < len(shuffled)
@@ -472,6 +492,32 @@ def api_archive_photos():
         "has_more": has_more,
         "page": page,
         "total": len(all_approved)
+    })
+
+
+@app.route("/api/archive/tags")
+def api_archive_tags():
+    """사용 가능한 모든 태그 목록 반환"""
+    # 승인된 사진의 모든 태그 수집
+    approved_photos = Photo.query.filter_by(status="approved").filter(Photo.tags.isnot(None)).all()
+    all_tags = set()
+    
+    for photo in approved_photos:
+        if photo.tags:
+            tags_list = [tag.strip() for tag in photo.tags.split(",") if tag.strip()]
+            all_tags.update(tags_list)
+    
+    # 태그별 사진 개수 계산
+    tag_counts = {}
+    for tag in all_tags:
+        count = Photo.query.filter_by(status="approved").filter(Photo.tags.contains(tag)).count()
+        tag_counts[tag] = count
+    
+    # 사진 개수 순으로 정렬
+    sorted_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
+    
+    return jsonify({
+        "tags": [{"name": tag, "count": count} for tag, count in sorted_tags]
     })
 
 
@@ -528,6 +574,12 @@ def api_upload():
     except ValueError:
         return jsonify({"success": False, "error": "날짜 형식이 올바르지 않습니다."}), 400
     
+    # 태그 처리 (선택사항)
+    tags_str = request.form.get("tags", "").strip()
+    # 태그 정리 (쉼표로 구분, 공백 제거, 중복 제거)
+    tags_list = [tag.strip() for tag in tags_str.split(",") if tag.strip()]
+    tags = ",".join(sorted(set(tags_list))) if tags_list else None
+    
     # 여러 파일 받기
     files = request.files.getlist("photos")
     if not files or all(f.filename == "" for f in files):
@@ -575,7 +627,7 @@ def api_upload():
             # secure_filename이 빈 문자열을 반환하면 기본 파일명 사용
             safe_name = f"file_{idx}.jpg"
         
-        # 날짜 기준으로만 폴더 생성 (촬영일 기준)
+        # 촬영일 기준으로 폴더 생성
         folder_name = str(taken_date_value)
         # 마이크로초 단위 타임스탬프 + 인덱스로 고유성 보장
         # 마이크로초는 6자리이므로 그대로 사용
@@ -600,6 +652,7 @@ def api_upload():
             'user_id': user.id,
             'event_name': event_name,
             'taken_date': taken_date_value,
+            'tags': tags,
             'file_size': file_size,
             'content_type': content_type
         })
@@ -615,6 +668,7 @@ def api_upload():
             task['user_id'],
             task['event_name'],
             task['taken_date'],
+            task['tags'],
             task['file_size'],
             task['content_type']
         )

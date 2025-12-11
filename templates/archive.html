@@ -27,6 +27,20 @@
 
   <!-- 갤러리 뷰 -->
   <div class="archive-gallery-view" id="galleryView">
+    <!-- 태그 필터 -->
+    <div class="gallery-tag-filter" id="tagFilter">
+      <div class="tag-filter-header">
+        <span>태그 필터</span>
+        <button class="tag-filter-clear" id="clearTagFilter" style="display: none;">전체 보기</button>
+      </div>
+      <div class="tag-filter-list" id="tagFilterList">
+        <div class="loading-indicator">
+          <div class="loading-spinner"></div>
+          <p>태그를 불러오는 중...</p>
+        </div>
+      </div>
+    </div>
+    
     <div class="gallery-container" id="galleryContainer"></div>
     <div class="loading-indicator" id="loadingIndicator" style="display: none;">
       <div class="loading-spinner"></div>
@@ -147,8 +161,10 @@ function toggleDay(year, month, day) {
   }
 }
 
-// 날짜별로 그룹화된 사진 저장
-let photosByDate = {};
+// 태그별로 그룹화된 사진 저장
+let photosByTag = {};
+let allPhotos = [];
+let selectedTag = null;
 
 // 날짜 포맷팅 함수
 function formatDate(dateString) {
@@ -167,6 +183,70 @@ let hasMore = true;
 const galleryContainer = document.getElementById('galleryContainer');
 const loadingIndicator = document.getElementById('loadingIndicator');
 const galleryEmptyState = document.getElementById('galleryEmptyState');
+const tagFilterList = document.getElementById('tagFilterList');
+const clearTagFilterBtn = document.getElementById('clearTagFilter');
+
+// 태그 목록 로드
+function loadTags() {
+  fetch('/api/archive/tags')
+    .then(response => response.json())
+    .then(data => {
+      tagFilterList.innerHTML = '';
+      if (data.tags && data.tags.length > 0) {
+        data.tags.forEach(tag => {
+          const tagBtn = document.createElement('button');
+          tagBtn.className = 'tag-filter-btn';
+          tagBtn.textContent = `${tag.name} (${tag.count})`;
+          tagBtn.addEventListener('click', () => filterByTag(tag.name));
+          tagFilterList.appendChild(tagBtn);
+        });
+      } else {
+        tagFilterList.innerHTML = '<p style="color: var(--text-gray); font-size: 14px;">태그가 없습니다.</p>';
+      }
+    })
+    .catch(error => {
+      console.error('Error loading tags:', error);
+      tagFilterList.innerHTML = '<p style="color: var(--text-gray); font-size: 14px;">태그를 불러올 수 없습니다.</p>';
+    });
+}
+
+// 태그로 필터링
+function filterByTag(tag) {
+  selectedTag = tag;
+  clearTagFilterBtn.style.display = 'block';
+  
+  // 태그 버튼 활성화 상태 업데이트
+  document.querySelectorAll('.tag-filter-btn').forEach(btn => {
+    if (btn.textContent.includes(tag)) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  
+  // 갤러리 초기화 및 재로드
+  photosByTag = {};
+  allPhotos = [];
+  currentPage = 1;
+  hasMore = true;
+  loadGalleryPhotos();
+}
+
+// 필터 초기화
+clearTagFilterBtn.addEventListener('click', () => {
+  selectedTag = null;
+  clearTagFilterBtn.style.display = 'none';
+  document.querySelectorAll('.tag-filter-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // 갤러리 초기화 및 재로드
+  photosByTag = {};
+  allPhotos = [];
+  currentPage = 1;
+  hasMore = true;
+  loadGalleryPhotos();
+});
 
 function loadGalleryPhotos() {
   if (isLoading || !hasMore) return;
@@ -175,23 +255,45 @@ function loadGalleryPhotos() {
   loadingIndicator.style.display = 'block';
   galleryEmptyState.style.display = 'none';
   
-  fetch(`/api/archive/photos?page=${currentPage}&per_page=50`)
+  const url = selectedTag 
+    ? `/api/archive/photos?page=${currentPage}&per_page=50&tag=${encodeURIComponent(selectedTag)}`
+    : `/api/archive/photos?page=${currentPage}&per_page=50`;
+  
+  fetch(url)
     .then(response => response.json())
     .then(data => {
       // 첫 페이지이고 사진이 없을 때
       if (currentPage === 1 && data.photos.length === 0) {
         galleryContainer.innerHTML = '';
         galleryEmptyState.style.display = 'block';
+        galleryEmptyState.innerHTML = selectedTag 
+          ? `<p>태그 "${selectedTag}"에 해당하는 사진이 없습니다.</p>`
+          : '<p>아직 승인된 사진이 없습니다.</p>';
         hasMore = false;
       } else if (data.photos.length > 0) {
-        // 날짜별로 그룹화
+        // 태그별로 그룹화
         data.photos.forEach(photo => {
-          const dateKey = photo.taken_date || 'no-date';
-          if (!photosByDate[dateKey]) {
-            photosByDate[dateKey] = [];
+          const photoTags = photo.tags || [];
+          if (photoTags.length === 0) {
+            // 태그가 없는 경우 "태그 없음"으로 분류
+            if (!photosByTag['태그 없음']) {
+              photosByTag['태그 없음'] = [];
+            }
+            photosByTag['태그 없음'].push(photo);
+          } else {
+            photoTags.forEach(tag => {
+              if (!photosByTag[tag]) {
+                photosByTag[tag] = [];
+              }
+              // 중복 방지
+              if (!photosByTag[tag].some(p => p.id === photo.id)) {
+                photosByTag[tag].push(photo);
+              }
+            });
           }
-          photosByDate[dateKey].push(photo);
         });
+        
+        allPhotos.push(...data.photos);
         
         // 갤러리 렌더링
         renderGallery();
@@ -219,25 +321,24 @@ function loadGalleryPhotos() {
 function renderGallery() {
   galleryContainer.innerHTML = '';
   
-  // 날짜별로 정렬 (최신순)
-  const sortedDates = Object.keys(photosByDate).sort((a, b) => {
-    if (a === 'no-date') return 1;
-    if (b === 'no-date') return -1;
-    return new Date(b) - new Date(a);
+  // 태그별로 정렬 (사진 개수 순)
+  const sortedTags = Object.keys(photosByTag).sort((a, b) => {
+    if (a === '태그 없음') return 1;
+    if (b === '태그 없음') return -1;
+    return photosByTag[b].length - photosByTag[a].length;
   });
   
-  sortedDates.forEach(dateKey => {
-    const photos = photosByDate[dateKey];
-    const dateLabel = formatDate(dateKey);
+  sortedTags.forEach(tagName => {
+    const photos = photosByTag[tagName];
     
-    // 날짜 섹션 생성
-    const dateSection = document.createElement('div');
-    dateSection.className = 'gallery-date-section';
+    // 태그 섹션 생성
+    const tagSection = document.createElement('div');
+    tagSection.className = 'gallery-tag-section';
     
-    const dateHeader = document.createElement('div');
-    dateHeader.className = 'gallery-date-header';
-    dateHeader.textContent = dateLabel;
-    dateSection.appendChild(dateHeader);
+    const tagHeader = document.createElement('div');
+    tagHeader.className = 'gallery-tag-header';
+    tagHeader.innerHTML = `<span>${tagName}</span><span class="tag-count">${photos.length}장</span>`;
+    tagSection.appendChild(tagHeader);
     
     // 사진 그리드 생성
     const photoGrid = document.createElement('div');
@@ -255,8 +356,8 @@ function renderGallery() {
       photoGrid.appendChild(photoItem);
     });
     
-    dateSection.appendChild(photoGrid);
-    galleryContainer.appendChild(dateSection);
+    tagSection.appendChild(photoGrid);
+    galleryContainer.appendChild(tagSection);
   });
 }
 
@@ -282,6 +383,7 @@ function handleScroll() {
 window.addEventListener('scroll', handleScroll);
 
 // 초기 로드 (갤러리 뷰가 기본)
+loadTags();
 loadGalleryPhotos();
 </script>
 {% endblock %}

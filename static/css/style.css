@@ -579,6 +579,70 @@ h1.iu-title {
   padding: 2rem 0;
 }
 
+.gallery-tag-filter {
+  max-width: 1400px;
+  margin: 0 auto 2rem;
+  padding: 0 1rem;
+}
+
+.tag-filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.tag-filter-header span {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-white);
+}
+
+.tag-filter-clear {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-white);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.tag-filter-clear:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.tag-filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-filter-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-white);
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tag-filter-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.tag-filter-btn.active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+}
+
 .gallery-container {
   display: flex;
   flex-direction: column;
@@ -586,6 +650,30 @@ h1.iu-title {
   padding: 0 1rem;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.gallery-tag-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.gallery-tag-header {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-white);
+  padding: 0.5rem 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tag-count {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text-gray);
 }
 
 .gallery-date-section {
@@ -744,8 +832,7 @@ h1.iu-title {
 }
 
 .month-list, .day-list {
-  padding-left: 20px;
-  padding-right: 10px;
+  padding: 10px 20px;
 }
 
 .day-content {
@@ -1785,6 +1872,7 @@ h1.iu-title {
     gap: 4px;
   }
 
+  .gallery-tag-header,
   .gallery-date-header {
     font-size: 20px;
   }
@@ -1792,6 +1880,20 @@ h1.iu-title {
   .gallery-container {
     gap: 2rem;
     padding: 0 0.5rem;
+  }
+
+  .gallery-tag-filter {
+    padding: 0 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .tag-filter-header span {
+    font-size: 16px;
+  }
+
+  .tag-filter-btn {
+    font-size: 12px;
+    padding: 6px 12px;
   }
 
   .gallery-empty-state {
