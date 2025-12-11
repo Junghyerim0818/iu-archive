@@ -2388,9 +2388,17 @@ h1.iu-title {
     font-size: 60px;
   }
 
+  .container {
+    margin-top: 0;
+  }
+
   .iu-container {
     top: 8rem;
   }
+
+  .archive-wrapper {
+    padding-top: 1rem;
+    }
 
   .archive-view-toggle {
     top: 10px;
@@ -2627,7 +2635,7 @@ h1.iu-title {
 
   .archive-upload-button,
   .upload-archive-button {
-    bottom: 120px;
+    bottom: 115px;
     right: 16px;
   }
 
