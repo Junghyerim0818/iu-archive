@@ -544,7 +544,8 @@ def api_upload():
         if not safe_name:
             continue
         
-        folder_name = f"{taken_date_value}_{event_name.replace(' ', '_')}"
+        # 날짜 기준으로만 폴더 생성 (촬영일 기준)
+        folder_name = str(taken_date_value)
         # 마이크로초 단위 타임스탬프 + 인덱스로 고유성 보장
         timestamp = base_timestamp.strftime("%Y%m%d%H%M%S%f") + f"_{idx}"
         relative_path = Path(folder_name) / f"{timestamp}_{safe_name}"

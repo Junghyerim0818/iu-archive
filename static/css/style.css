@@ -1117,6 +1117,7 @@ h1.iu-title {
   cursor: pointer;
   transition: all 0.3s ease;
   background: rgba(255, 255, 255, 0.05);
+  min-height: 200px;
 }
 
 .file-upload-area:hover,
@@ -1133,6 +1134,12 @@ h1.iu-title {
   left: 0;
   opacity: 0;
   cursor: pointer;
+  z-index: 1;
+}
+
+.file-upload-area.has-files input[type="file"] {
+  pointer-events: none;
+  z-index: 0;
 }
 
 .file-upload-placeholder {
@@ -1171,6 +1178,9 @@ h1.iu-title {
 .file-list {
   width: 100%;
   margin-top: 16px;
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
 }
 
 .file-list-header {
@@ -1208,8 +1218,7 @@ h1.iu-title {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 300px;
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 .file-item {
@@ -1221,6 +1230,9 @@ h1.iu-title {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.2s ease;
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
 }
 
 .file-item:hover {
@@ -1257,6 +1269,9 @@ h1.iu-title {
   justify-content: center;
   border-radius: 4px;
   transition: all 0.2s ease;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .file-item-remove:hover {
