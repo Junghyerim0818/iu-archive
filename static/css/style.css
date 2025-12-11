@@ -579,21 +579,51 @@ h1.iu-title {
   padding: 2rem 0;
 }
 
-.gallery-tag-filter {
-  max-width: 1400px;
-  margin: 0 auto 2rem;
-  padding: 0 1rem;
+.gallery-tag-filter-sidebar {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  width: 250px;
+  max-height: calc(100vh - 120px);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  z-index: 999;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.gallery-tag-filter-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.gallery-tag-filter-sidebar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.gallery-tag-filter-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.gallery-tag-filter-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .tag-filter-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .tag-filter-header span {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-white);
 }
@@ -616,7 +646,7 @@ h1.iu-title {
 
 .tag-filter-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
 }
 
@@ -624,12 +654,26 @@ h1.iu-title {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--text-white);
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 10px 14px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s ease;
-  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tag-filter-btn .tag-name {
+  flex: 1;
+}
+
+.tag-filter-btn .tag-count {
+  font-size: 12px;
+  color: var(--text-gray);
+  margin-left: 8px;
 }
 
 .tag-filter-btn:hover {
@@ -650,6 +694,7 @@ h1.iu-title {
   padding: 0 1rem;
   max-width: 1400px;
   margin: 0 auto;
+  padding-right: 290px; /* 태그 필터 공간 확보 */
 }
 
 .gallery-tag-section {
@@ -1882,18 +1927,27 @@ h1.iu-title {
     padding: 0 0.5rem;
   }
 
-  .gallery-tag-filter {
-    padding: 0 0.5rem;
+  .gallery-tag-filter-sidebar {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-height: 300px;
     margin-bottom: 1.5rem;
+    padding: 12px;
+  }
+
+  .gallery-container {
+    padding-right: 1rem;
   }
 
   .tag-filter-header span {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .tag-filter-btn {
     font-size: 12px;
-    padding: 6px 12px;
+    padding: 8px 12px;
   }
 
   .gallery-empty-state {
