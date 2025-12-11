@@ -701,6 +701,7 @@ h1.iu-title {
   padding: 16px 20px;
   cursor: pointer;
   display: flex;
+  border-radius: 0.5rem;
   justify-content: space-between;
   align-items: center;
   transition: background 0.3s ease;
@@ -744,7 +745,7 @@ h1.iu-title {
 
 .month-list, .day-list {
   padding-left: 20px;
-  padding-right: 5px;
+  padding-right: 10px;
 }
 
 .day-content {

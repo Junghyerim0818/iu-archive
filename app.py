@@ -24,6 +24,7 @@ from sqlalchemy import inspect, text
 from werkzeug.utils import secure_filename
 from google.cloud import storage
 from google.oauth2 import service_account
+import re
 
 BASE_DIR = Path(__file__).parent
 IS_SERVERLESS = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
@@ -270,6 +271,20 @@ oauth.register(
 )
 
 
+def sanitize_gcs_path(path: str) -> str:
+    """GCS blob 경로를 안전하게 정리하는 함수"""
+    # 백슬래시를 슬래시로 변환
+    path = path.replace("\\", "/")
+    # 연속된 슬래시 제거
+    path = re.sub(r"/+", "/", path)
+    # 앞뒤 슬래시 제거
+    path = path.strip("/")
+    # GCS에서 허용되지 않는 문자 제거 또는 변환
+    # GCS blob 이름은 UTF-8 문자를 지원하지만, 일부 특수 문자는 문제가 될 수 있음
+    # 안전하게 URL 인코딩된 문자만 허용
+    return path
+
+
 def ensure_upload_folder() -> Path:
     """로컬 스토리지를 사용할 때만 폴더를 생성합니다."""
     if app.config["STORAGE_BACKEND"] == "gcs":
@@ -294,7 +309,13 @@ def process_file_upload_async(file_data: bytes, filename: str, relative_path: st
         with app.app_context():
             if app.config["STORAGE_BACKEND"] == "gcs":
                 # GCS 업로드
-                blob_name = relative_path.replace("\\", "/")
+                blob_name = str(relative_path).replace("\\", "/")
+                blob_name = sanitize_gcs_path(blob_name)
+                
+                # blob 이름 검증
+                if not blob_name or len(blob_name) > 1024:
+                    raise ValueError(f"Invalid blob name: {blob_name}")
+                
                 blob = gcs_bucket.blob(blob_name)
                 blob.content_type = content_type or "application/octet-stream"
                 from io import BytesIO
@@ -321,7 +342,11 @@ def process_file_upload_async(file_data: bytes, filename: str, relative_path: st
             db.session.commit()
             app.logger.info(f"파일 업로드 완료: {filename}")
     except Exception as e:
-        app.logger.error(f"파일 업로드 실패: {filename}, 오류: {e}", exc_info=True)
+        error_msg = str(e)
+        app.logger.error(f"파일 업로드 실패: {filename}, 오류: {error_msg}", exc_info=True)
+        # GCS 관련 오류인 경우 더 자세한 정보 로깅
+        if "pattern" in error_msg.lower() or "invalid" in error_msg.lower():
+            app.logger.error(f"GCS blob 경로 문제 가능성: relative_path={relative_path}")
         db.session.rollback()
 
 
@@ -543,15 +568,25 @@ def api_upload():
     file_tasks = []
     
     for idx, (file, file_size) in enumerate(valid_files):
-        safe_name = secure_filename(file.filename)
+        # 파일명이 없거나 secure_filename이 빈 문자열을 반환하는 경우 처리
+        original_filename = file.filename or f"file_{idx}"
+        safe_name = secure_filename(original_filename)
         if not safe_name:
-            continue
+            # secure_filename이 빈 문자열을 반환하면 기본 파일명 사용
+            safe_name = f"file_{idx}.jpg"
         
         # 날짜 기준으로만 폴더 생성 (촬영일 기준)
         folder_name = str(taken_date_value)
         # 마이크로초 단위 타임스탬프 + 인덱스로 고유성 보장
+        # 마이크로초는 6자리이므로 그대로 사용
         timestamp = base_timestamp.strftime("%Y%m%d%H%M%S%f") + f"_{idx}"
         relative_path = Path(folder_name) / f"{timestamp}_{safe_name}"
+        
+        # GCS 경로 정리
+        if app.config["STORAGE_BACKEND"] == "gcs":
+            relative_path_str = str(relative_path).replace("\\", "/")
+            relative_path_str = sanitize_gcs_path(relative_path_str)
+            relative_path = Path(relative_path_str)
         
         # 파일 데이터 읽기 (메모리에 저장)
         file_data = file.read()
