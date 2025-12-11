@@ -1,6 +1,4 @@
 import os
-import json
-from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from functools import wraps
 from pathlib import Path
@@ -16,7 +14,6 @@ from flask import (
     session,
     url_for,
     send_from_directory,
-    jsonify,
 )
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import NullPool
@@ -56,13 +53,11 @@ app.config.update(
 db = SQLAlchemy(app)
 gcs_client = None
 gcs_bucket = None
-
-# 백그라운드 작업을 위한 스레드 풀
-upload_executor = ThreadPoolExecutor(max_workers=4)
 if app.config["STORAGE_BACKEND"] == "gcs":
     try:
         # 서비스 계정 키 파일 경로 또는 JSON 문자열로 인증
         if app.config["GCS_CREDENTIALS"]:
+            import json
             # JSON 문자열인지 파일 경로인지 확인
             if app.config["GCS_CREDENTIALS"].startswith("{"):
                 # JSON 문자열
@@ -286,45 +281,6 @@ def ensure_upload_folder() -> Path:
     return upload_root
 
 
-def process_file_upload_async(file_data: bytes, filename: str, relative_path: str, 
-                              user_id: int, event_name: str, taken_date: date, 
-                              file_size: int, content_type: str):
-    """백그라운드에서 파일을 실제로 저장하는 함수"""
-    try:
-        with app.app_context():
-            if app.config["STORAGE_BACKEND"] == "gcs":
-                # GCS 업로드
-                blob_name = relative_path.replace("\\", "/")
-                blob = gcs_bucket.blob(blob_name)
-                blob.content_type = content_type or "application/octet-stream"
-                from io import BytesIO
-                blob.upload_from_file(BytesIO(file_data))
-            else:
-                # 로컬 스토리지 업로드
-                upload_root = ensure_upload_folder()
-                file_path = upload_root / relative_path
-                file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_path.write_bytes(file_data)
-            
-            # DB에 기록
-            photo_data = {
-                "user_id": user_id,
-                "relative_path": relative_path.replace("\\", "/"),
-                "original_name": filename,
-                "event_name": event_name,
-                "taken_date": taken_date,
-                "status": "pending",
-                "file_size": file_size,
-            }
-            photo = Photo(**photo_data)
-            db.session.add(photo)
-            db.session.commit()
-            app.logger.info(f"파일 업로드 완료: {filename}")
-    except Exception as e:
-        app.logger.error(f"파일 업로드 실패: {filename}, 오류: {e}", exc_info=True)
-        db.session.rollback()
-
-
 @app.route("/")
 def home():
     # 방문자 기록 (중복 방지: 같은 세션에서는 하루에 한 번만 기록)
@@ -362,16 +318,35 @@ def home():
             pass
         db.session.rollback()
     
-    # 랜덤 사진들을 모자이크용으로 가져오기
-    import random
-    all_approved = Photo.query.filter_by(status="approved").all()
-    # 랜덤으로 최대 50개 선택 (없으면 빈 리스트)
-    if len(all_approved) > 0:
-        random_photos = random.sample(all_approved, min(len(all_approved), 50))
-    else:
-        random_photos = []
+    approved_recent = (
+        Photo.query.filter_by(status="approved")
+        .order_by(Photo.created_at.desc())
+        .limit(12)
+        .all()
+    )
     
-    return render_template("home.html", random_photos=random_photos, user=current_user())
+    # 통계 데이터
+    total_photos = Photo.query.count()
+    approved_photos = Photo.query.filter_by(status="approved").count()
+    pending_photos = Photo.query.filter_by(status="pending").count()
+    
+    # 방문자 통계 (테이블이 없을 수 있으므로 예외 처리)
+    try:
+        total_visitors = Visitor.query.count()
+        today_visitors = Visitor.query.filter_by(visited_date=today).count()
+    except Exception:
+        total_visitors = 0
+        today_visitors = 0
+    
+    stats = {
+        "total_photos": total_photos,
+        "approved_photos": approved_photos,
+        "pending_photos": pending_photos,
+        "total_visitors": total_visitors,
+        "today_visitors": today_visitors,
+    }
+    
+    return render_template("home.html", photos=approved_recent, user=current_user(), stats=stats)
 
 
 @app.route("/archive")
@@ -403,53 +378,6 @@ def archive():
     )
 
 
-@app.route("/api/archive/photos")
-def api_archive_photos():
-    """무한 스크롤을 위한 랜덤 사진 API"""
-    import random
-    
-    page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 30, type=int)
-    
-    # 모든 승인된 사진 가져오기
-    all_approved = Photo.query.filter_by(status="approved").all()
-    
-    if not all_approved:
-        return jsonify({
-            "photos": [],
-            "has_more": False,
-            "page": page
-        })
-    
-    # 매번 랜덤으로 섞기 (새로운 순서 제공)
-    shuffled = all_approved.copy()
-    random.shuffle(shuffled)
-    
-    # 페이지네이션
-    start = (page - 1) * per_page
-    end = start + per_page
-    photos_page = shuffled[start:end]
-    
-    # 사진 데이터 포맷팅
-    photos_data = []
-    for photo in photos_page:
-        photos_data.append({
-            "id": photo.id,
-            "url": build_file_url(photo),
-            "event_name": photo.event_name or "기타",
-            "taken_date": photo.taken_date.isoformat() if photo.taken_date else None
-        })
-    
-    has_more = end < len(shuffled)
-    
-    return jsonify({
-        "photos": photos_data,
-        "has_more": has_more,
-        "page": page,
-        "total": len(all_approved)
-    })
-
-
 @app.route("/files/<path:filename>")
 def files(filename):
     if app.config["STORAGE_BACKEND"] == "gcs":
@@ -460,121 +388,7 @@ def files(filename):
     return send_from_directory(upload_root, filename)
 
 
-@app.route("/api/upload", methods=["POST"])
-@login_required
-def api_upload():
-    """비동기 다중 파일 업로드 API"""
-    user = current_user()
-    today = date.today()
-    
-    # 오늘 업로드한 파일 개수와 총 크기 계산
-    today_photos = Photo.query.filter(
-        Photo.user_id == user.id,
-        db.func.date(Photo.created_at) == today,
-    ).all()
-    
-    today_count = len(today_photos)
-    today_total_size = 0
-    if not user.is_admin:
-        if app.config["STORAGE_BACKEND"] == "gcs":
-            for photo in today_photos:
-                if photo.file_size:
-                    today_total_size += photo.file_size
-        else:
-            upload_root = ensure_upload_folder()
-            for photo in today_photos:
-                try:
-                    photo_path = upload_root / photo.relative_path
-                    if photo_path.exists():
-                        today_total_size += photo_path.stat().st_size
-                except Exception:
-                    pass
-    
-    # 제한 설정
-    MAX_FILES_PER_DAY = 20
-    MAX_SIZE_PER_DAY = 100 * 1024 * 1024  # 100MB
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-    
-    # 폼 데이터 받기
-    event_name = request.form.get("event_name", "").strip() or "기타"
-    taken_date_str = request.form.get("taken_date") or str(today)
-    try:
-        taken_date_value = datetime.strptime(taken_date_str, "%Y-%m-%d").date()
-    except ValueError:
-        return jsonify({"success": False, "error": "날짜 형식이 올바르지 않습니다."}), 400
-    
-    # 여러 파일 받기
-    files = request.files.getlist("photos")
-    if not files or all(f.filename == "" for f in files):
-        return jsonify({"success": False, "error": "파일을 선택해주세요."}), 400
-    
-    # 파일 개수 체크
-    if not user.is_admin and today_count + len(files) > MAX_FILES_PER_DAY:
-        return jsonify({"success": False, "error": f"오늘 업로드 한도에 도달했습니다. (최대 {MAX_FILES_PER_DAY}장)"}), 400
-    
-    # 파일 크기 체크 및 총 용량 계산
-    total_new_size = 0
-    valid_files = []
-    
-    for file in files:
-        if file.filename == "":
-            continue
-        
-        # 파일 크기 확인
-        file.seek(0, 2)
-        file_size = file.tell()
-        file.seek(0)
-        
-        if not user.is_admin:
-            if file_size > MAX_FILE_SIZE:
-                return jsonify({"success": False, "error": f"파일 크기가 너무 큽니다. ({file.filename}: 최대 {MAX_FILE_SIZE / (1024 * 1024):.0f}MB)"}), 400
-        
-        total_new_size += file_size
-        valid_files.append((file, file_size))
-    
-    # 하루 총 용량 체크
-    if not user.is_admin and today_total_size + total_new_size > MAX_SIZE_PER_DAY:
-        remaining_mb = (MAX_SIZE_PER_DAY - today_total_size) / (1024 * 1024)
-        return jsonify({"success": False, "error": f"오늘 업로드 용량 한도에 도달했습니다. (남은 용량: {remaining_mb:.1f}MB)"}), 400
-    
-    # 파일들을 백그라운드로 처리
-    base_timestamp = datetime.utcnow()
-    for idx, (file, file_size) in enumerate(valid_files):
-        safe_name = secure_filename(file.filename)
-        if not safe_name:
-            continue
-        
-        folder_name = f"{taken_date_value}_{event_name.replace(' ', '_')}"
-        # 마이크로초 단위 타임스탬프 + 인덱스로 고유성 보장
-        timestamp = base_timestamp.strftime("%Y%m%d%H%M%S%f") + f"_{idx}"
-        relative_path = Path(folder_name) / f"{timestamp}_{safe_name}"
-        
-        # 파일 데이터 읽기
-        file_data = file.read()
-        content_type = file.mimetype or "application/octet-stream"
-        
-        # 백그라운드에서 처리
-        upload_executor.submit(
-            process_file_upload_async,
-            file_data,
-            file.filename,
-            str(relative_path).replace("\\", "/"),
-            user.id,
-            event_name,
-            taken_date_value,
-            file_size,
-            content_type
-        )
-    
-    uploaded_count = len(valid_files)
-    return jsonify({
-        "success": True,
-        "message": f"{uploaded_count}개의 파일이 업로드 대기열에 추가되었습니다. 백그라운드에서 처리 중입니다.",
-        "count": uploaded_count
-    })
-
-
-@app.route("/upload", methods=["GET"])
+@app.route("/upload", methods=["GET", "POST"])
 @login_required
 def upload():
     user = current_user()
@@ -606,6 +420,86 @@ def upload():
                 except Exception:
                     pass
     
+    # 제한 설정
+    MAX_FILES_PER_DAY = 20
+    MAX_SIZE_PER_DAY = 100 * 1024 * 1024  # 100MB (하루 총 용량)
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB (개별 파일 최대 크기)
+    
+    if request.method == "POST":
+        if not user.is_admin:
+            # 파일 개수 체크
+            if today_count >= MAX_FILES_PER_DAY:
+                flash(f"오늘 업로드 한도에 도달했습니다. (최대 {MAX_FILES_PER_DAY}장)", "error")
+                return redirect(url_for("upload"))
+        
+        file = request.files.get("photo")
+        event_name = request.form.get("event_name", "").strip() or "기타"
+        taken_date_str = request.form.get("taken_date") or str(today)
+        try:
+            taken_date_value = datetime.strptime(taken_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            flash("날짜 형식이 올바르지 않습니다.", "error")
+            return redirect(url_for("upload"))
+
+        if not file or file.filename == "":
+            flash("파일을 선택해주세요.", "error")
+            return redirect(url_for("upload"))
+        
+        # 파일 크기 체크
+        file.seek(0, 2)  # 파일 끝으로 이동
+        file_size = file.tell()
+        file.seek(0)  # 다시 시작으로
+        
+        if not user.is_admin:
+            # 개별 파일 크기 체크
+            if file_size > MAX_FILE_SIZE:
+                flash(f"파일 크기가 너무 큽니다. (최대 {MAX_FILE_SIZE / (1024 * 1024):.0f}MB)", "error")
+                return redirect(url_for("upload"))
+            
+            # 하루 총 용량 체크
+            if today_total_size + file_size > MAX_SIZE_PER_DAY:
+                remaining_mb = (MAX_SIZE_PER_DAY - today_total_size) / (1024 * 1024)
+                flash(f"오늘 업로드 용량 한도에 도달했습니다. (남은 용량: {remaining_mb:.1f}MB)", "error")
+                return redirect(url_for("upload"))
+
+        safe_name = secure_filename(file.filename)
+        if not safe_name:
+            flash("파일 이름이 올바르지 않습니다.", "error")
+            return redirect(url_for("upload"))
+
+        folder_name = f"{taken_date_value}_{event_name.replace(' ', '_')}"
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+        relative_path = Path(folder_name) / f"{timestamp}_{safe_name}"
+
+        if app.config["STORAGE_BACKEND"] == "gcs":
+            blob_name = str(relative_path).replace("\\", "/")
+            file.stream.seek(0)
+            blob = gcs_bucket.blob(blob_name)
+            blob.content_type = file.mimetype or "application/octet-stream"
+            blob.upload_from_file(file.stream)
+        else:
+            upload_root = ensure_upload_folder()
+            target_dir = upload_root / folder_name
+            target_dir.mkdir(parents=True, exist_ok=True)
+            file.save(target_dir / relative_path.name)
+
+        photo_data = {
+            "user_id": user.id,
+            "relative_path": str(relative_path).replace("\\", "/"),
+            "original_name": file.filename,
+            "event_name": event_name,
+            "taken_date": taken_date_value,
+            "status": "pending",
+            "file_size": file_size,
+        }
+        
+        photo = Photo(**photo_data)
+        db.session.add(photo)
+        db.session.commit()
+
+        flash("업로드가 접수되었습니다. 관리자의 승인 후 아카이브에 노출됩니다.", "success")
+        return redirect(url_for("upload"))
+
     # 남은 용량 계산
     MAX_FILES_PER_DAY = 20
     MAX_SIZE_PER_DAY = 100 * 1024 * 1024  # 100MB

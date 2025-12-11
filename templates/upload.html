@@ -54,14 +54,13 @@
       </div>
 
       <div class="form-group">
-        <label for="photos">사진 파일 (여러 개 선택 가능)</label>
+        <label for="photo">사진 파일</label>
         <div class="file-upload-area" id="fileUploadArea">
           <input 
             type="file" 
-            id="photos"
-            name="photos" 
+            id="photo"
+            name="photo" 
             accept="image/*" 
-            multiple
             required
             onchange="handleFileSelect(this)"
           >
@@ -72,33 +71,17 @@
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
             <p>클릭하거나 드래그하여 파일 선택</p>
-            <small>여러 파일 선택 가능, 개별 파일 최대 10MB</small>
+            <small>최대 100MB, 이미지 파일만 가능</small>
           </div>
-          <div class="file-list" id="fileList" style="display: none;">
-            <div class="file-list-header">
-              <span>선택된 파일</span>
-              <button type="button" class="clear-files-btn" onclick="clearFiles()">전체 삭제</button>
-            </div>
-            <div id="fileItems"></div>
+          <div class="file-info" id="fileInfo" style="display: none;">
+            <span id="fileName"></span>
+            <span id="fileSize"></span>
           </div>
         </div>
       </div>
 
-      <div id="uploadProgress" style="display: none;">
-        <div class="upload-progress-container">
-          <div class="upload-progress-header">
-            <span>업로드 진행 중...</span>
-            <span id="uploadStatus">대기 중</span>
-          </div>
-          <div class="upload-progress-bar">
-            <div class="upload-progress-fill" id="progressFill"></div>
-          </div>
-          <p class="upload-progress-text">업로드가 백그라운드에서 진행됩니다. 페이지를 벗어나셔도 됩니다.</p>
-        </div>
-      </div>
-
-      <button type="button" class="submit-btn" id="submitBtn" onclick="handleUpload()">
-        <span>업로드 시작</span>
+      <button type="submit" class="submit-btn" id="submitBtn">
+        <span>업로드 요청</span>
         <svg class="submit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="17 8 12 3 7 8"></polyline>
@@ -108,157 +91,42 @@
 
       <div class="form-note">
         <p>업로드된 사진은 관리자 승인 후 아카이브에 공개됩니다.</p>
-        <p>업로드는 백그라운드에서 진행되므로 시작 후 페이지를 떠나셔도 됩니다.</p>
       </div>
     </form>
   </div>
 </div>
 
 <script>
-let selectedFiles = [];
-
 function handleFileSelect(input) {
-  const files = Array.from(input.files);
-  
-  if (files.length === 0) {
+  const file = input.files[0];
+  if (file) {
+    const fileName = file.name;
+    const fileSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+    
+    document.getElementById('fileName').textContent = fileName;
+    document.getElementById('fileSize').textContent = fileSize;
+    document.getElementById('fileInfo').style.display = 'flex';
+    document.querySelector('.file-upload-placeholder').style.display = 'none';
+    
+    // 파일 크기 체크
+    if (file.size > 100 * 1024 * 1024) {
+      alert('파일 크기가 100MB를 초과합니다.');
+      input.value = '';
+      resetFileUpload();
+    }
+  } else {
     resetFileUpload();
-    return;
   }
-  
-  // 파일 크기 체크 (10MB)
-  const invalidFiles = files.filter(file => file.size > 10 * 1024 * 1024);
-  if (invalidFiles.length > 0) {
-    alert(`다음 파일들이 10MB를 초과합니다:\n${invalidFiles.map(f => f.name).join('\n')}`);
-    input.value = '';
-    resetFileUpload();
-    return;
-  }
-  
-  selectedFiles = files;
-  displayFileList();
-}
-
-function displayFileList() {
-  const fileList = document.getElementById('fileList');
-  const fileItems = document.getElementById('fileItems');
-  const placeholder = document.querySelector('.file-upload-placeholder');
-  
-  if (selectedFiles.length === 0) {
-    fileList.style.display = 'none';
-    placeholder.style.display = 'block';
-    return;
-  }
-  
-  fileList.style.display = 'block';
-  placeholder.style.display = 'none';
-  
-  fileItems.innerHTML = selectedFiles.map((file, index) => {
-    const fileSize = (file.size / (1024 * 1024)).toFixed(2);
-    return `
-      <div class="file-item">
-        <span class="file-item-name">${file.name}</span>
-        <span class="file-item-size">${fileSize} MB</span>
-        <button type="button" class="file-item-remove" onclick="removeFile(${index})">×</button>
-      </div>
-    `;
-  }).join('');
-}
-
-function removeFile(index) {
-  selectedFiles.splice(index, 1);
-  const fileInput = document.getElementById('photos');
-  const dataTransfer = new DataTransfer();
-  selectedFiles.forEach(file => dataTransfer.items.add(file));
-  fileInput.files = dataTransfer.files;
-  displayFileList();
-}
-
-function clearFiles() {
-  selectedFiles = [];
-  document.getElementById('photos').value = '';
-  resetFileUpload();
 }
 
 function resetFileUpload() {
-  selectedFiles = [];
-  document.getElementById('fileList').style.display = 'none';
+  document.getElementById('fileInfo').style.display = 'none';
   document.querySelector('.file-upload-placeholder').style.display = 'block';
-}
-
-async function handleUpload() {
-  const eventName = document.getElementById('event_name').value.trim();
-  const takenDate = document.getElementById('taken_date').value;
-  const photos = document.getElementById('photos');
-  
-  if (!eventName) {
-    alert('행사명을 입력해주세요.');
-    return;
-  }
-  
-  if (!takenDate) {
-    alert('촬영일을 선택해주세요.');
-    return;
-  }
-  
-  if (selectedFiles.length === 0) {
-    alert('파일을 선택해주세요.');
-    return;
-  }
-  
-  // 폼 데이터 준비
-  const formData = new FormData();
-  formData.append('event_name', eventName);
-  formData.append('taken_date', takenDate);
-  
-  selectedFiles.forEach(file => {
-    formData.append('photos', file);
-  });
-  
-  // UI 업데이트
-  const submitBtn = document.getElementById('submitBtn');
-  const progressDiv = document.getElementById('uploadProgress');
-  const progressFill = document.getElementById('progressFill');
-  const uploadStatus = document.getElementById('uploadStatus');
-  
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = '<span>업로드 중...</span>';
-  progressDiv.style.display = 'block';
-  progressFill.style.width = '0%';
-  uploadStatus.textContent = '서버에 전송 중...';
-  
-  try {
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData
-    });
-    
-    const result = await response.json();
-    
-    if (response.ok && result.success) {
-      progressFill.style.width = '100%';
-      uploadStatus.textContent = '완료!';
-      
-      // 성공 메시지
-      setTimeout(() => {
-        alert(result.message || `${result.count}개의 파일이 업로드 대기열에 추가되었습니다.`);
-        // 페이지 새로고침 (선택사항)
-        window.location.reload();
-      }, 1000);
-    } else {
-      throw new Error(result.error || '업로드 실패');
-    }
-  } catch (error) {
-    uploadStatus.textContent = '오류 발생';
-    progressFill.style.width = '0%';
-    alert('업로드 중 오류가 발생했습니다: ' + error.message);
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = '<span>업로드 시작</span><svg class="submit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
-  }
 }
 
 // 드래그 앤 드롭
 const fileUploadArea = document.getElementById('fileUploadArea');
-const fileInput = document.getElementById('photos');
+const fileInput = document.getElementById('photo');
 
 fileUploadArea.addEventListener('dragover', (e) => {
   e.preventDefault();
@@ -272,18 +140,10 @@ fileUploadArea.addEventListener('dragleave', () => {
 fileUploadArea.addEventListener('drop', (e) => {
   e.preventDefault();
   fileUploadArea.classList.remove('dragover');
-  const files = Array.from(e.dataTransfer.files);
+  const files = e.dataTransfer.files;
   if (files.length > 0) {
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    if (imageFiles.length !== files.length) {
-      alert('이미지 파일만 업로드할 수 있습니다.');
-    }
-    if (imageFiles.length > 0) {
-      const dataTransfer = new DataTransfer();
-      imageFiles.forEach(file => dataTransfer.items.add(file));
-      fileInput.files = dataTransfer.files;
-      handleFileSelect(fileInput);
-    }
+    fileInput.files = files;
+    handleFileSelect(fileInput);
   }
 });
 </script>
