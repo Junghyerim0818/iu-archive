@@ -34,33 +34,12 @@
   box-sizing: border-box;
 }
 
-html {
-  overflow: -moz-scrollbars-none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
-}
-
-html::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
-  width: 0;
-  height: 0;
-}
-
 body {
   margin: 0;
   background: var(--bg-dark);
   color: var(--text-white);
   min-height: 100vh;
   overflow-x: hidden;
-  overflow-y: auto;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-body::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
 }
 
 /* 마우스 따라다니는 원 */
@@ -104,7 +83,7 @@ body.home-page {
 /* IU 텍스트 스타일 */
 .iu-container {
   position: fixed;
-  top: 18rem;
+  top: 15vh;
   left: 0;
   width: 100%;
   z-index: 1;
@@ -134,29 +113,16 @@ h1.iu-title {
   display: inline-block;
 }
 
-/* 홈 페이지 파도 컨테이너 */
-.wave-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100vh;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
 /* 홈 페이지 파도 SVG 스타일 */
 .wave-svg {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100vh;
+  height: 100%;
   box-sizing: border-box;
   display: block;
   z-index: 0;
-  pointer-events: none;
 }
 
 /* Flash 메시지 아이콘 */
@@ -210,444 +176,65 @@ h1.iu-title {
 }
 
 
-
-/* 우측 하단 프로필 버튼 */
-.profile-button-container {
+/* 상단 중앙 메뉴 */
+.floating-menu {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: center;
-}
-
-.profile-button {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  cursor: pointer;
-  padding: 0;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.profile-button:hover {
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.15);
-  transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-}
-
-.profile-button-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.profile-button-initial {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  color: var(--text-white);
-  font-size: 24px;
-  font-weight: 600;
-  border-radius: 50%;
-}
-
-.home-button {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  color: var(--text-white);
-  text-decoration: none;
-}
-
-.home-button:hover {
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.15);
-  transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-}
-
-.home-button svg {
-  width: 24px;
-  height: 24px;
-}
-
-.profile-menu {
-  position: absolute;
-  bottom: 70px;
-  right: 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 16px;
-  min-width: 280px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(10px);
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-.profile-menu.show {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-.profile-menu-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  background: rgba(255, 255, 255, 0.5);
-}
-
-.profile-menu-img {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-}
-
-.profile-menu-img-initial {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  color: var(--text-white);
-  font-size: 20px;
-  font-weight: 600;
-  border: 2px solid rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-}
-
-.profile-menu-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.profile-menu-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--bg-dark);
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.profile-menu-email {
-  font-size: 12px;
-  color: var(--text-gray);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.profile-menu-item {
-  display: block;
-  padding: 12px 16px;
-  color: var(--bg-dark);
-  text-decoration: none;
-  font-size: 14px;
-  transition: background 0.2s ease;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.profile-menu-item:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.profile-menu-item.active {
-  background: rgba(0, 0, 0, 0.08);
-  font-weight: 600;
-}
-
-.profile-menu-item:last-child {
-  border-bottom: none;
-}
-
-/* 로그인 버튼 (로그아웃 상태) */
-.login-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  text-decoration: none;
-  color: var(--text-white);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 0;
-}
-
-.login-button:hover {
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.15);
-  transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-  color: var(--text-white);
-}
-
-.login-button svg {
-  width: 24px;
-  height: 24px;
-}
-
-/* 버튼 컨테이너 (상단) */
-.cta-container-top {
-  position: fixed;
-  top: 45%;
+  top: 30px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 100;
+  z-index: 1000;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  gap: 8px;
   align-items: center;
-  gap: 16px;
-  width: 100%;
-  box-sizing: border-box;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.8s ease, visibility 0.8s ease;
-}
-
-.cta-container-top.visible {
-  opacity: 1;
-  visibility: visible;
-}
-
-
-.cta-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 32px;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 30px;
+  padding: 8px;
+}
+
+.menu-item {
   color: var(--text-white);
   text-decoration: none;
-  font-size: 18px;
-  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  outline: none;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.cta-button:hover {
+.menu-item:focus,
+.menu-item:active {
+  outline: none;
+  box-shadow: none;
+}
+
+.menu-item:hover {
   background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.5);
-  transform: translateY(-2px);
   color: var(--text-white);
 }
 
-.cta-button svg {
-  transition: transform 0.3s ease;
-}
-
-.cta-button:hover svg {
-  transform: rotate(90deg);
+.menu-item.active {
+  background: rgba(255, 255, 255, 0.3);
+  color: var(--text-white);
 }
 
 /* 컨테이너 */
 .container {
   min-height: 100vh;
+  padding: 40px;
   position: relative;
   z-index: 2;
-}
-
-/* 아카이브 뷰 전환 */
-.archive-wrapper {
-  position: relative;
-  min-height: 100vh;
-  padding-top: 5rem;
-}
-
-.archive-view-toggle {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  display: flex;
-  gap: 8px;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  padding: 8px;
-  border-radius: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.view-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
-  color: var(--text-gray);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.view-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-white);
-}
-
-.view-toggle-btn.active {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: var(--text-white);
-}
-
-.view-toggle-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-/* 모자이크 뷰 */
-.archive-mosaic-view {
-  width: 100%;
-  min-height: 100vh;
-}
-
-.archive-mosaic-view .mosaic-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 2px;
-  padding: 0;
-  margin: 0;
-}
-
-.mosaic-photo-item {
-  position: relative;
-  aspect-ratio: 1;
-  overflow: hidden;
-  cursor: pointer;
-  transition: transform 0.3s ease, z-index 0.3s ease;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.mosaic-photo-item:hover {
-  transform: scale(1.05);
-  z-index: 10;
-}
-
-.mosaic-photo-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.mosaic-photo-info {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
-  padding: 12px;
-  color: var(--text-white);
-  font-size: 12px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.mosaic-photo-item:hover .mosaic-photo-info {
-  opacity: 1;
-}
-
-.loading-indicator {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--text-gray);
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 16px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--text-white);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-indicator p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.mosaic-empty-state {
-  text-align: center;
-  padding: 80px 20px;
-  color: var(--text-gray);
-  min-height: 60vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mosaic-empty-state p {
-  font-size: 18px;
-  margin: 0;
-}
-
-/* 날짜별 리스트 뷰 */
-.archive-list-view {
-  width: 100%;
 }
 
 /* 아카이브 날짜별 아코디언 */
 .archive-container {
   max-width: 800px;
-  margin: 5rem auto;
+  margin: 0 auto;
 }
 
 .date-accordion {
@@ -754,16 +341,9 @@ h1.iu-title {
 
 .empty-state {
   text-align: center;
-  padding: 80px 20px;
+  margin-top: 2rem;
+  padding: 60px 20px;
   color: var(--text-gray);
-  min-height: 60vh;
-  align-items: center;
-  justify-content: center;
-}
-
-.empty-state p {
-  font-size: 18px;
-  margin: 0;
 }
 
 /* 폼 스타일 */
@@ -1137,158 +717,6 @@ h1.iu-title {
 
 .file-info span {
   font-size: 14px;
-}
-
-/* 다중 파일 업로드 스타일 */
-.file-list {
-  width: 100%;
-  margin-top: 16px;
-}
-
-.file-list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.file-list-header span {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-white);
-}
-
-.clear-files-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--text-gray);
-  padding: 4px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s ease;
-}
-
-.clear-files-btn:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  color: var(--text-white);
-}
-
-#fileItems {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.2s ease;
-}
-
-.file-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.file-item-name {
-  flex: 1;
-  font-size: 14px;
-  color: var(--text-white);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-item-size {
-  font-size: 12px;
-  color: var(--text-gray);
-  white-space: nowrap;
-}
-
-.file-item-remove {
-  background: transparent;
-  border: none;
-  color: var(--text-gray);
-  font-size: 20px;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.file-item-remove:hover {
-  background: rgba(255, 0, 0, 0.2);
-  color: #ff5555;
-}
-
-/* 업로드 진행 상황 표시 */
-#uploadProgress {
-  margin-top: 24px;
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.upload-progress-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.upload-progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.upload-progress-header span:first-child {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-white);
-}
-
-.upload-progress-header span:last-child {
-  font-size: 12px;
-  color: var(--text-gray);
-}
-
-.upload-progress-bar {
-  width: 100%;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.upload-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.5));
-  border-radius: 4px;
-  transition: width 0.3s ease;
-  width: 0%;
-}
-
-.upload-progress-text {
-  font-size: 12px;
-  color: var(--text-gray);
-  margin: 0;
-  font-style: italic;
 }
 
 .submit-btn {
@@ -1677,57 +1105,27 @@ h1.iu-title {
 /* 반응형 */
 @media (max-width: 768px) {
   h1.iu-title {
-    font-size: 60px;
+    font-size: max(10vh);
+    text-align: center;
   }
 
   .iu-container {
-    top: 8rem;
+    top: 15vh;
   }
 
-  .archive-view-toggle {
-    top: 10px;
-    right: 10px;
+  .floating-menu {
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    justify-content: center;
+    max-width: 90%;
     padding: 6px;
-    gap: 4px;
   }
 
-  .view-toggle-btn {
-    padding: 8px 12px;
-    font-size: 12px;
+  .menu-item {
+    padding: 8px 16px;
+    font-size: 13px;
   }
-
-  .view-toggle-btn svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  .view-toggle-btn span {
-    display: none;
-  }
-
-  .archive-mosaic-view .mosaic-container {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 1px;
-  }
-
-  .mosaic-empty-state {
-    padding: 60px 20px;
-    min-height: 50vh;
-  }
-
-  .mosaic-empty-state p {
-    font-size: 16px;
-  }
-
-  .empty-state {
-    padding: 60px 20px;
-    min-height: 50vh;
-  }
-
-  .empty-state p {
-    font-size: 16px;
-  }
-
 
   .container {
     padding: 20px;
@@ -1772,50 +1170,5 @@ h1.iu-title {
   .photo-thumbnail {
     width: 100%;
     height: 200px;
-  }
-
-  .profile-button-container {
-    bottom: 16px;
-    right: 16px;
-    gap: 10px;
-  }
-
-  .profile-button {
-    width: 48px;
-    height: 48px;
-  }
-
-  .home-button {
-    width: 48px;
-    height: 48px;
-  }
-
-  .home-button svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .profile-menu {
-    bottom: 64px;
-    min-width: 260px;
-  }
-
-  .login-button {
-    width: 48px;
-    height: 48px;
-  }
-
-  .login-button svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .cta-container-top {
-    gap: 12px;
-  }
-
-  .cta-button {
-    padding: 12px 24px;
-    font-size: 16px;
   }
 }
