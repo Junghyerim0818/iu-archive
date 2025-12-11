@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="upload-container">
+<div class="upload-container" 
+     data-today-count="{{ today_count }}"
+     data-max-files="{{ max_files }}"
+     data-is-admin="{{ 'true' if user.is_admin else 'false' }}"
+     data-used-size="{{ today_total_size }}">
   <div class="upload-header">
     <h1>사진 업로드</h1>
     <p class="upload-subtitle">아이유 사진을 업로드하고 아카이브에 공유하세요</p>
@@ -238,6 +242,49 @@ async function handleUpload() {
   if (selectedFiles.length === 0) {
     alert('파일을 선택해주세요.');
     return;
+  }
+  
+  // 할당량 체크 (업로드 전에 미리 체크)
+  const container = document.querySelector('.upload-container');
+  const todayCount = parseInt(container.getAttribute('data-today-count')) || 0;
+  const maxFiles = parseInt(container.getAttribute('data-max-files')) || 20;
+  const isAdmin = container.getAttribute('data-is-admin') === 'true';
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
+  const usedSize = parseInt(container.getAttribute('data-used-size')) || 0; // bytes
+  
+  if (!isAdmin) {
+    // 파일 개수 체크
+    if (todayCount + selectedFiles.length > maxFiles) {
+      const remaining = maxFiles - todayCount;
+      alert(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n\n남은 업로드 가능: ${remaining > 0 ? remaining : 0}장`);
+      return;
+    }
+    
+    // 파일 크기 체크
+    let totalNewSize = 0;
+    const oversizedFiles = [];
+    
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      if (file.size > MAX_FILE_SIZE) {
+        oversizedFiles.push(`${file.name} (${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
+      }
+      totalNewSize += file.size;
+    }
+    
+    if (oversizedFiles.length > 0) {
+      alert(`파일 크기 초과!\n\n다음 파일이 10MB를 초과합니다:\n${oversizedFiles.join('\n')}\n\n개별 파일 최대 크기: 10MB`);
+      return;
+    }
+    
+    // 총 용량 체크
+    if (usedSize + totalNewSize > MAX_TOTAL_SIZE) {
+      const remainingMB = (MAX_TOTAL_SIZE - usedSize) / (1024 * 1024);
+      const newSizeMB = (totalNewSize / (1024 * 1024)).toFixed(2);
+      alert(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택한 파일 용량: ${newSizeMB}MB\n최대 용량: 100MB\n\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB`);
+      return;
+    }
   }
   
   // 폼 데이터 준비

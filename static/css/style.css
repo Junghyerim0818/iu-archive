@@ -1776,72 +1776,205 @@ h1.iu-title {
   font-size: 18px;
 }
 
-.admin-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
+/* 날짜별 그룹 */
+.admin-date-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
 }
 
-.admin-card {
+.admin-date-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.admin-date-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.admin-date-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-white);
+  margin: 0;
+}
+
+.date-photo-count {
+  font-size: 14px;
+  color: var(--text-gray);
+  background: rgba(255, 152, 0, 0.2);
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+/* 사용자별 그룹 */
+.admin-user-section {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  margin-left: 20px;
+}
+
+.admin-user-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.user-avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-white);
+  font-size: 16px;
+  font-weight: 600;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-white);
+}
+
+.user-email {
+  font-size: 13px;
+  color: var(--text-gray);
+}
+
+.user-photo-count {
+  font-size: 13px;
+  color: var(--text-gray);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+/* 사진 그리드 */
+.admin-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.admin-photo-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
 }
 
-.admin-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+.admin-photo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-.admin-photo {
+.admin-photo-thumbnail {
+  position: relative;
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
 }
 
-.admin-photo img {
+.admin-photo-thumbnail img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s ease;
 }
 
-.admin-card-content {
-  padding: 20px;
+.admin-photo-thumbnail:hover img {
+  transform: scale(1.05);
 }
 
-.admin-info {
+.photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  color: white;
+}
+
+.admin-photo-thumbnail:hover .photo-overlay {
+  opacity: 1;
+}
+
+.admin-photo-info {
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 8px;
 }
 
-.admin-info-item {
+.photo-info-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.admin-info-item .info-label {
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
-  color: var(--text-gray);
-  min-width: 80px;
 }
 
-.admin-info-item .info-value {
-  font-size: 13px;
+.photo-info-row .info-label {
+  color: var(--text-gray);
+  font-size: 11px;
+}
+
+.photo-info-row .info-value {
   color: var(--text-white);
+  font-size: 12px;
   text-align: right;
   word-break: break-word;
+  flex: 1;
 }
 
-.admin-actions {
+.admin-photo-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .action-btn {
@@ -2000,8 +2133,30 @@ h1.iu-title {
     gap: 8px;
   }
 
-  .admin-grid {
-    grid-template-columns: 1fr;
+  .admin-date-section {
+    gap: 1.5rem;
+  }
+
+  .admin-user-section {
+    margin-left: 0;
+    padding: 16px;
+  }
+
+  .admin-photos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .admin-date-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .admin-user-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 
   .photo-list-item {

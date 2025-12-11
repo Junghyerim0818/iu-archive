@@ -778,10 +778,46 @@ def admin_pending():
                 flash("거부되었습니다.", "success")
         return redirect(url_for("admin_pending"))
 
-    pending = Photo.query.filter_by(status="pending").order_by(Photo.created_at).all()
+    # 업로드 날짜별로 그룹화
+    from collections import defaultdict
+    pending_photos = Photo.query.filter_by(status="pending").order_by(Photo.created_at.desc()).all()
+    
+    # 업로드 날짜별로 그룹화 (created_at의 날짜 부분만)
+    photos_by_date = defaultdict(lambda: defaultdict(list))
+    
+    for photo in pending_photos:
+        upload_date = photo.created_at.date() if photo.created_at else date.today()
+        user_id = photo.user_id
+        photos_by_date[upload_date][user_id].append(photo)
+    
+    # 날짜별로 정렬 (최신순)
+    sorted_dates = sorted(photos_by_date.keys(), reverse=True)
+    
+    # 날짜별, 사용자별로 정리된 데이터 구조 생성
+    organized_photos = []
+    for upload_date in sorted_dates:
+        date_group = {
+            'date': upload_date,
+            'users': [],
+            'total_count': 0
+        }
+        
+        # 각 날짜의 사용자별로 정리
+        for user_id, photos in photos_by_date[upload_date].items():
+            user = db.session.get(User, user_id)
+            if user:
+                date_group['users'].append({
+                    'user': user,
+                    'photos': photos
+                })
+                date_group['total_count'] += len(photos)
+        
+        organized_photos.append(date_group)
+    
     return render_template(
         "admin_pending.html",
-        photos=pending,
+        organized_photos=organized_photos,
+        total_count=len(pending_photos),
         user=current_user(),
         upload_root="files",
     )

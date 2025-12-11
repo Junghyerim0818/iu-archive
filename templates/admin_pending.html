@@ -6,57 +6,80 @@
     <p>업로드된 사진을 검토하고 승인 또는 거절하세요</p>
   </div>
 
-  {% if photos %}
+  {% if organized_photos %}
     <div class="pending-count">
-      <span>대기 중인 업로드: <strong>{{ photos|length }}개</strong></span>
+      <span>대기 중인 업로드: <strong>{{ total_count }}개</strong></span>
     </div>
 
-    <div class="admin-grid">
-      {% for photo in photos %}
-        <div class="admin-card">
-          <div class="admin-photo">
-            <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
+    <div class="admin-date-groups">
+      {% for date_group in organized_photos %}
+        <div class="admin-date-section">
+          <div class="admin-date-header">
+            <h2>{{ date_group.date.strftime('%Y년 %m월 %d일') }}</h2>
+            <span class="date-photo-count">{{ date_group.total_count }}개</span>
           </div>
-          <div class="admin-card-content">
-            <div class="admin-info">
-              <div class="admin-info-item">
-                <span class="info-label">행사명</span>
-                <span class="info-value">{{ photo.event_name or '기타' }}</span>
+          
+          {% for user_group in date_group.users %}
+            <div class="admin-user-section">
+              <div class="admin-user-header">
+                <div class="user-info">
+                  {% if user_group.user.picture %}
+                    <img src="{{ user_group.user.picture }}" alt="프로필" class="user-avatar">
+                  {% else %}
+                    <div class="user-avatar-placeholder">
+                      {{ user_group.user.email[0].upper() }}
+                    </div>
+                  {% endif %}
+                  <div class="user-details">
+                    <span class="user-name">{{ user_group.user.name or user_group.user.email }}</span>
+                    <span class="user-email">{{ user_group.user.email }}</span>
+                  </div>
+                </div>
+                <span class="user-photo-count">{{ user_group.photos|length }}장</span>
               </div>
-              <div class="admin-info-item">
-                <span class="info-label">촬영일</span>
-                <span class="info-value">{{ photo.taken_date }}</span>
-              </div>
-              <div class="admin-info-item">
-                <span class="info-label">파일명</span>
-                <span class="info-value">{{ photo.original_name }}</span>
-              </div>
-              <div class="admin-info-item">
-                <span class="info-label">업로더</span>
-                <span class="info-value">{{ photo.user.email }}</span>
-              </div>
-              <div class="admin-info-item">
-                <span class="info-label">업로드일</span>
-                <span class="info-value">{{ photo.created_at.strftime('%Y-%m-%d %H:%M') if photo.created_at else '알 수 없음' }}</span>
+              
+              <div class="admin-photos-grid">
+                {% for photo in user_group.photos %}
+                  <div class="admin-photo-card">
+                    <div class="admin-photo-thumbnail" onclick="openImageModal('{{ file_url(photo) }}', '{{ photo.event_name }}')">
+                      <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
+                      <div class="photo-overlay">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </div>
+                    </div>
+                    <div class="admin-photo-info">
+                      <div class="photo-info-row">
+                        <span class="info-label">행사명</span>
+                        <span class="info-value">{{ photo.event_name or '기타' }}</span>
+                      </div>
+                      <div class="photo-info-row">
+                        <span class="info-label">촬영일</span>
+                        <span class="info-value">{{ photo.taken_date }}</span>
+                      </div>
+                      {% if photo.tags %}
+                      <div class="photo-info-row">
+                        <span class="info-label">태그</span>
+                        <span class="info-value">{{ photo.tags }}</span>
+                      </div>
+                      {% endif %}
+                      <form method="post" class="admin-photo-actions">
+                        <input type="hidden" name="photo_id" value="{{ photo.id }}">
+                        <button name="action" value="approve" type="submit" class="action-btn approve-btn">
+                          승인
+                        </button>
+                        <button name="action" value="reject" type="submit" class="action-btn reject-btn">
+                          거절
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                {% endfor %}
               </div>
             </div>
-            <form method="post" class="admin-actions">
-              <input type="hidden" name="photo_id" value="{{ photo.id }}">
-              <button name="action" value="approve" type="submit" class="action-btn approve-btn">
-                <svg class="approve-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                승인
-              </button>
-              <button name="action" value="reject" type="submit" class="action-btn reject-btn">
-                <svg class="reject-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-                거절
-              </button>
-            </form>
-          </div>
+          {% endfor %}
         </div>
       {% endfor %}
     </div>
