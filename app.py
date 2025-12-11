@@ -838,7 +838,16 @@ def admin_pending():
 
     # 업로드 날짜별로 그룹화
     from collections import defaultdict
-    pending_photos = Photo.query.filter_by(status="pending").order_by(Photo.created_at.desc()).all()
+    # 사용자 정보를 함께 로드하여 N+1 쿼리 방지
+    pending_photos = (
+        Photo.query.filter_by(status="pending")
+        .order_by(Photo.created_at.desc())
+        .all()
+    )
+    
+    # 사용자 정보를 한 번에 로드
+    user_ids = {photo.user_id for photo in pending_photos}
+    users_dict = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()}
     
     # 업로드 날짜별로 그룹화 (created_at의 날짜 부분만)
     photos_by_date = defaultdict(lambda: defaultdict(list))
@@ -846,6 +855,8 @@ def admin_pending():
     for photo in pending_photos:
         upload_date = photo.created_at.date() if photo.created_at else date.today()
         user_id = photo.user_id
+        # URL을 미리 생성하여 성능 최적화
+        photo.file_url_cache = build_file_url(photo)
         photos_by_date[upload_date][user_id].append(photo)
     
     # 날짜별로 정렬 (최신순)
@@ -862,7 +873,7 @@ def admin_pending():
         
         # 각 날짜의 사용자별로 정리
         for user_id, photos in photos_by_date[upload_date].items():
-            user = db.session.get(User, user_id)
+            user = users_dict.get(user_id)
             if user:
                 date_group['users'].append({
                     'user': user,
@@ -891,12 +902,14 @@ def profile():
         .all()
     )
     
-    # 업로드 날짜별로 그룹화
+    # 업로드 날짜별로 그룹화 및 URL 미리 생성
     from collections import defaultdict
     photos_by_date = defaultdict(list)
     
     for photo in my_photos:
         upload_date = photo.created_at.date() if photo.created_at else date.today()
+        # URL을 미리 생성하여 성능 최적화
+        photo.file_url_cache = build_file_url(photo)
         photos_by_date[upload_date].append(photo)
     
     # 날짜별로 정렬 (최신순)

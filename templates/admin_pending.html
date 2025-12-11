@@ -70,19 +70,21 @@
               <div class="admin-photos-container">
                 <div class="admin-photos-grid">
                 {% for photo in user_group.photos %}
-                  <div class="admin-photo-card" data-photo-id="{{ photo.id }}" onclick="togglePhotoSelection({{ photo.id }})">
+                  {% set photo_url = photo.file_url_cache if photo.file_url_cache else file_url(photo) %}
+                  {% set photo_id = photo.id %}
+                  <div class="admin-photo-card" data-photo-id="{{ photo_id }}" onclick="togglePhotoSelection(this.dataset.photoId)">
                     <div class="photo-checkbox-wrapper">
-                      <input type="checkbox" class="photo-checkbox" id="photo_{{ photo.id }}" value="{{ photo.id }}" onchange="updateSelection()">
-                      <label for="photo_{{ photo.id }}" class="photo-checkbox-label"></label>
+                      <input type="checkbox" class="photo-checkbox" id="photo_{{ photo_id }}" value="{{ photo_id }}" onchange="updateSelection()">
+                      <label for="photo_{{ photo_id }}" class="photo-checkbox-label"></label>
                     </div>
-                    <button class="photo-zoom-btn" onclick="event.stopPropagation(); openImageModal('{{ file_url(photo) }}', '{{ photo.event_name }}')" title="확대 보기">
+                    <button class="photo-zoom-btn" onclick="event.stopPropagation(); openImageModal('{{ photo_url }}', '{{ photo.event_name }}')" title="확대 보기">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="11" cy="11" r="8"></circle>
                         <path d="m21 21-4.35-4.35"></path>
                       </svg>
                     </button>
                     <div class="admin-photo-thumbnail">
-                      <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
+                      <img src="{{ photo_url }}" alt="{{ photo.event_name }}" loading="lazy">
                     </div>
                     <div class="admin-photo-info">
                       <div class="photo-info-row">
@@ -147,7 +149,8 @@ function toggleUserSection(header) {
 }
 
 // 사진 선택 토글
-function togglePhotoSelection(photoId) {
+function togglePhotoSelection(element) {
+  const photoId = element.dataset.photoId || element;
   const checkbox = document.getElementById('photo_' + photoId);
   if (checkbox) {
     checkbox.checked = !checkbox.checked;
