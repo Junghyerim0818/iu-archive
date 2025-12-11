@@ -250,33 +250,62 @@ async function handleUpload() {
   progressFill.style.width = '0%';
   uploadStatus.textContent = '서버에 전송 중...';
   
+  // 업로드 시작 플래그 설정 (페이지를 벗어나도 업로드가 계속되도록)
+  let uploadInProgress = true;
+  
+  // 페이지를 벗어날 때 경고 (선택사항)
+  const beforeUnloadHandler = (e) => {
+    if (uploadInProgress) {
+      // 일부 브라우저에서는 커스텀 메시지를 표시하지 않음
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  };
+  window.addEventListener('beforeunload', beforeUnloadHandler);
+  
   try {
+    // keepalive 옵션으로 페이지를 벗어나도 요청이 계속되도록 함
     const response = await fetch('/api/upload', {
       method: 'POST',
-      body: formData
+      body: formData,
+      keepalive: true  // 페이지를 벗어나도 요청이 계속됨
     });
     
     const result = await response.json();
     
     if (response.ok && result.success) {
+      uploadInProgress = false;
+      window.removeEventListener('beforeunload', beforeUnloadHandler);
+      
       progressFill.style.width = '100%';
-      uploadStatus.textContent = '완료!';
+      uploadStatus.textContent = '서버 전송 완료! 백그라운드에서 처리 중입니다.';
       
       // 성공 메시지
       setTimeout(() => {
-        alert(result.message || `${result.count}개의 파일이 업로드 대기열에 추가되었습니다.`);
+        alert(result.message || `${result.count}개의 파일이 업로드 대기열에 추가되었습니다.\n\n페이지를 벗어나도 업로드는 계속됩니다.`);
         // 페이지 새로고침 (선택사항)
         window.location.reload();
       }, 1000);
     } else {
+      uploadInProgress = false;
+      window.removeEventListener('beforeunload', beforeUnloadHandler);
       throw new Error(result.error || '업로드 실패');
     }
   } catch (error) {
-    uploadStatus.textContent = '오류 발생';
-    progressFill.style.width = '0%';
-    alert('업로드 중 오류가 발생했습니다: ' + error.message);
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = '<span>업로드 시작</span><svg class="submit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
+    uploadInProgress = false;
+    window.removeEventListener('beforeunload', beforeUnloadHandler);
+    
+    // 네트워크 오류인 경우에도 keepalive로 인해 서버에서 처리 중일 수 있음
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      uploadStatus.textContent = '네트워크 오류가 발생했지만, 서버에서 업로드가 계속 처리될 수 있습니다.';
+      alert('네트워크 연결에 문제가 있었지만, 서버에서 업로드가 계속 처리될 수 있습니다.\n잠시 후 페이지를 새로고침하여 확인해주세요.');
+    } else {
+      uploadStatus.textContent = '오류 발생';
+      progressFill.style.width = '0%';
+      alert('업로드 중 오류가 발생했습니다: ' + error.message);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span>업로드 시작</span><svg class="submit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
+    }
   }
 }
 

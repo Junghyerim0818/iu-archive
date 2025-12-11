@@ -3,14 +3,14 @@
 <div class="archive-wrapper">
   <!-- 뷰 전환 버튼 -->
   <div class="archive-view-toggle">
-    <button class="view-toggle-btn active" data-view="mosaic" id="mosaicViewBtn">
+    <button class="view-toggle-btn active" data-view="gallery" id="galleryViewBtn">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="7" height="7"></rect>
         <rect x="14" y="3" width="7" height="7"></rect>
         <rect x="3" y="14" width="7" height="7"></rect>
         <rect x="14" y="14" width="7" height="7"></rect>
       </svg>
-      <span>모자이크</span>
+      <span>갤러리</span>
     </button>
     <button class="view-toggle-btn" data-view="list" id="listViewBtn">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -25,14 +25,14 @@
     </button>
   </div>
 
-  <!-- 모자이크 뷰 -->
-  <div class="archive-mosaic-view" id="mosaicView">
-    <div class="mosaic-container" id="mosaicContainer"></div>
+  <!-- 갤러리 뷰 -->
+  <div class="archive-gallery-view" id="galleryView">
+    <div class="gallery-container" id="galleryContainer"></div>
     <div class="loading-indicator" id="loadingIndicator" style="display: none;">
       <div class="loading-spinner"></div>
       <p>사진을 불러오는 중...</p>
     </div>
-    <div class="mosaic-empty-state" id="mosaicEmptyState" style="display: none;">
+    <div class="gallery-empty-state" id="galleryEmptyState" style="display: none;">
       <p>아직 승인된 사진이 없습니다.</p>
     </div>
   </div>
@@ -96,33 +96,33 @@
 
 <script>
 // 뷰 전환
-const mosaicViewBtn = document.getElementById('mosaicViewBtn');
+const galleryViewBtn = document.getElementById('galleryViewBtn');
 const listViewBtn = document.getElementById('listViewBtn');
-const mosaicView = document.getElementById('mosaicView');
+const galleryView = document.getElementById('galleryView');
 const listView = document.getElementById('listView');
 
 function switchView(view) {
-  if (view === 'mosaic') {
-    mosaicViewBtn.classList.add('active');
+  if (view === 'gallery') {
+    galleryViewBtn.classList.add('active');
     listViewBtn.classList.remove('active');
-    mosaicView.style.display = 'block';
+    galleryView.style.display = 'block';
     listView.style.display = 'none';
-    // 모자이크 뷰로 전환 시 초기화
-    if (mosaicContainer.children.length === 0) {
+    // 갤러리 뷰로 전환 시 초기화
+    if (galleryContainer.children.length === 0) {
       currentPage = 1;
       hasMore = true;
-      mosaicEmptyState.style.display = 'none';
-      loadMosaicPhotos();
+      galleryEmptyState.style.display = 'none';
+      loadGalleryPhotos();
     }
   } else {
-    mosaicViewBtn.classList.remove('active');
+    galleryViewBtn.classList.remove('active');
     listViewBtn.classList.add('active');
-    mosaicView.style.display = 'none';
+    galleryView.style.display = 'none';
     listView.style.display = 'block';
   }
 }
 
-mosaicViewBtn.addEventListener('click', () => switchView('mosaic'));
+galleryViewBtn.addEventListener('click', () => switchView('gallery'));
 listViewBtn.addEventListener('click', () => switchView('list'));
 
 // 날짜별 뷰 토글 함수
@@ -147,39 +147,54 @@ function toggleDay(year, month, day) {
   }
 }
 
-// 무한 스크롤 모자이크 뷰
+// 날짜별로 그룹화된 사진 저장
+let photosByDate = {};
+
+// 날짜 포맷팅 함수
+function formatDate(dateString) {
+  if (!dateString) return '날짜 없음';
+  const date = new Date(dateString);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}년 ${month}월 ${day}일`;
+}
+
+// 무한 스크롤 갤러리 뷰
 let currentPage = 1;
 let isLoading = false;
 let hasMore = true;
-const mosaicContainer = document.getElementById('mosaicContainer');
+const galleryContainer = document.getElementById('galleryContainer');
 const loadingIndicator = document.getElementById('loadingIndicator');
-const mosaicEmptyState = document.getElementById('mosaicEmptyState');
+const galleryEmptyState = document.getElementById('galleryEmptyState');
 
-function loadMosaicPhotos() {
+function loadGalleryPhotos() {
   if (isLoading || !hasMore) return;
   
   isLoading = true;
   loadingIndicator.style.display = 'block';
-  mosaicEmptyState.style.display = 'none';
+  galleryEmptyState.style.display = 'none';
   
-  fetch(`/api/archive/photos?page=${currentPage}&per_page=30`)
+  fetch(`/api/archive/photos?page=${currentPage}&per_page=50`)
     .then(response => response.json())
     .then(data => {
       // 첫 페이지이고 사진이 없을 때
       if (currentPage === 1 && data.photos.length === 0) {
-        mosaicContainer.innerHTML = '';
-        mosaicEmptyState.style.display = 'block';
+        galleryContainer.innerHTML = '';
+        galleryEmptyState.style.display = 'block';
         hasMore = false;
       } else if (data.photos.length > 0) {
+        // 날짜별로 그룹화
         data.photos.forEach(photo => {
-          const photoItem = document.createElement('div');
-          photoItem.className = 'mosaic-photo-item';
-          photoItem.innerHTML = `
-            <img src="${photo.url}" alt="${photo.event_name}" loading="lazy">
-            <div class="mosaic-photo-info">${photo.event_name}</div>
-          `;
-          mosaicContainer.appendChild(photoItem);
+          const dateKey = photo.taken_date || 'no-date';
+          if (!photosByDate[dateKey]) {
+            photosByDate[dateKey] = [];
+          }
+          photosByDate[dateKey].push(photo);
         });
+        
+        // 갤러리 렌더링
+        renderGallery();
         
         hasMore = data.has_more;
         currentPage++;
@@ -195,10 +210,54 @@ function loadMosaicPhotos() {
       isLoading = false;
       loadingIndicator.style.display = 'none';
       // 에러 발생 시에도 빈 상태 표시
-      if (currentPage === 1 && mosaicContainer.children.length === 0) {
-        mosaicEmptyState.style.display = 'block';
+      if (currentPage === 1 && galleryContainer.children.length === 0) {
+        galleryEmptyState.style.display = 'block';
       }
     });
+}
+
+function renderGallery() {
+  galleryContainer.innerHTML = '';
+  
+  // 날짜별로 정렬 (최신순)
+  const sortedDates = Object.keys(photosByDate).sort((a, b) => {
+    if (a === 'no-date') return 1;
+    if (b === 'no-date') return -1;
+    return new Date(b) - new Date(a);
+  });
+  
+  sortedDates.forEach(dateKey => {
+    const photos = photosByDate[dateKey];
+    const dateLabel = formatDate(dateKey);
+    
+    // 날짜 섹션 생성
+    const dateSection = document.createElement('div');
+    dateSection.className = 'gallery-date-section';
+    
+    const dateHeader = document.createElement('div');
+    dateHeader.className = 'gallery-date-header';
+    dateHeader.textContent = dateLabel;
+    dateSection.appendChild(dateHeader);
+    
+    // 사진 그리드 생성
+    const photoGrid = document.createElement('div');
+    photoGrid.className = 'gallery-photo-grid';
+    
+    photos.forEach(photo => {
+      const photoItem = document.createElement('div');
+      photoItem.className = 'gallery-photo-item';
+      photoItem.innerHTML = `
+        <img src="${photo.url}" alt="${photo.event_name}" loading="lazy">
+      `;
+      photoItem.addEventListener('click', () => {
+        openImageModal(photo.url, photo.event_name);
+      });
+      photoGrid.appendChild(photoItem);
+    });
+    
+    dateSection.appendChild(photoGrid);
+    galleryContainer.appendChild(dateSection);
+  });
 }
 
 // 스크롤 감지
@@ -206,15 +265,15 @@ let scrollTimeout;
 function handleScroll() {
   clearTimeout(scrollTimeout);
   scrollTimeout = setTimeout(() => {
-    // 모자이크 뷰가 활성화되어 있고, 더 불러올 사진이 있을 때만
-    if (mosaicView.style.display !== 'none' && hasMore && !isLoading) {
+    // 갤러리 뷰가 활성화되어 있고, 더 불러올 사진이 있을 때만
+    if (galleryView.style.display !== 'none' && hasMore && !isLoading) {
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
       const windowHeight = window.innerHeight;
       const documentHeight = document.documentElement.scrollHeight;
       
       // 하단에서 300px 전에 도달하면 다음 페이지 로드
       if (documentHeight - (scrollTop + windowHeight) < 300) {
-        loadMosaicPhotos();
+        loadGalleryPhotos();
       }
     }
   }, 100);
@@ -222,7 +281,7 @@ function handleScroll() {
 
 window.addEventListener('scroll', handleScroll);
 
-// 초기 로드 (모자이크 뷰가 기본)
-loadMosaicPhotos();
+// 초기 로드 (갤러리 뷰가 기본)
+loadGalleryPhotos();
 </script>
 {% endblock %}

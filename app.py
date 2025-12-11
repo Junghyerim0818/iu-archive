@@ -538,7 +538,10 @@ def api_upload():
         return jsonify({"success": False, "error": f"오늘 업로드 용량 한도에 도달했습니다. (남은 용량: {remaining_mb:.1f}MB)"}), 400
     
     # 파일들을 백그라운드로 처리
+    # 파일 데이터를 먼저 모두 읽어서 메모리에 저장한 후, 즉시 응답 반환
     base_timestamp = datetime.utcnow()
+    file_tasks = []
+    
     for idx, (file, file_size) in enumerate(valid_files):
         safe_name = secure_filename(file.filename)
         if not safe_name:
@@ -550,24 +553,38 @@ def api_upload():
         timestamp = base_timestamp.strftime("%Y%m%d%H%M%S%f") + f"_{idx}"
         relative_path = Path(folder_name) / f"{timestamp}_{safe_name}"
         
-        # 파일 데이터 읽기
+        # 파일 데이터 읽기 (메모리에 저장)
         file_data = file.read()
         content_type = file.mimetype or "application/octet-stream"
         
-        # 백그라운드에서 처리
+        # 백그라운드 작업으로 추가 (즉시 실행되지 않음)
+        file_tasks.append({
+            'file_data': file_data,
+            'filename': file.filename,
+            'relative_path': str(relative_path).replace("\\", "/"),
+            'user_id': user.id,
+            'event_name': event_name,
+            'taken_date': taken_date_value,
+            'file_size': file_size,
+            'content_type': content_type
+        })
+    
+    # 모든 파일 데이터를 메모리에 저장한 후, 백그라운드로 처리 시작
+    # 이렇게 하면 응답을 즉시 반환할 수 있음
+    for task in file_tasks:
         upload_executor.submit(
             process_file_upload_async,
-            file_data,
-            file.filename,
-            str(relative_path).replace("\\", "/"),
-            user.id,
-            event_name,
-            taken_date_value,
-            file_size,
-            content_type
+            task['file_data'],
+            task['filename'],
+            task['relative_path'],
+            task['user_id'],
+            task['event_name'],
+            task['taken_date'],
+            task['file_size'],
+            task['content_type']
         )
     
-    uploaded_count = len(valid_files)
+    uploaded_count = len(file_tasks)
     return jsonify({
         "success": True,
         "message": f"{uploaded_count}개의 파일이 업로드 대기열에 추가되었습니다. 백그라운드에서 처리 중입니다.",
@@ -695,6 +712,11 @@ def profile():
 
 
 def build_file_url(photo: Photo) -> str:
+    # 거절된 사진은 스토리지에서 삭제되므로 기본 이미지 반환
+    if photo.status == "rejected":
+        # 기본 이미지 (SVG data URI)
+        return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a1a' width='200' height='200'/%3E%3Ctext fill='%23888888' font-family='sans-serif' font-size='14' x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'%3E%EA%B1%B0%EC%A0%88%EB%90%9C%20%EC%82%AC%EC%A7%84%3C/text%3E%3C/svg%3E"
+    
     if app.config["STORAGE_BACKEND"] == "gcs":
         from datetime import timedelta
 

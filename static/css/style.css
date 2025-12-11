@@ -572,56 +572,64 @@ h1.iu-title {
   height: 18px;
 }
 
-/* 모자이크 뷰 */
-.archive-mosaic-view {
+/* 갤러리 뷰 */
+.archive-gallery-view {
   width: 100%;
   min-height: 100vh;
+  padding: 2rem 0;
 }
 
-.archive-mosaic-view .mosaic-container {
+.gallery-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  padding: 0 1rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.gallery-date-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.gallery-date-header {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-white);
+  padding: 0.5rem 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 0.5rem;
+}
+
+.gallery-photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 2px;
+  gap: 8px;
   padding: 0;
-  margin: 0;
 }
 
-.mosaic-photo-item {
+.gallery-photo-item {
   position: relative;
   aspect-ratio: 1;
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.3s ease, z-index 0.3s ease;
   background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
 }
 
-.mosaic-photo-item:hover {
+.gallery-photo-item:hover {
   transform: scale(1.05);
   z-index: 10;
 }
 
-.mosaic-photo-item img {
+.gallery-photo-item img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.mosaic-photo-info {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
-  padding: 12px;
-  color: var(--text-white);
-  font-size: 12px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.mosaic-photo-item:hover .mosaic-photo-info {
-  opacity: 1;
 }
 
 .loading-indicator {
@@ -651,10 +659,10 @@ h1.iu-title {
   font-size: 14px;
 }
 
-.mosaic-empty-state {
+.gallery-empty-state {
   text-align: center;
   padding: 80px 20px;
-  margin : 5rem auto;
+  margin: 5rem auto;
   color: var(--text-gray);
   min-height: 60vh;
   display: flex;
@@ -662,7 +670,7 @@ h1.iu-title {
   justify-content: center;
 }
 
-.mosaic-empty-state p {
+.gallery-empty-state p {
   font-size: 18px;
   margin: 0;
 }
@@ -1515,6 +1523,29 @@ h1.iu-title {
   object-fit: cover;
 }
 
+.photo-thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-gray);
+  gap: 8px;
+}
+
+.photo-thumbnail-placeholder svg {
+  width: 40px;
+  height: 40px;
+  opacity: 0.5;
+}
+
+.photo-thumbnail-placeholder span {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
 .photo-details {
   flex: 1;
   display: flex;
@@ -1748,17 +1779,26 @@ h1.iu-title {
     display: none;
   }
 
-  .archive-mosaic-view .mosaic-container {
+  .gallery-photo-grid {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 1px;
+    gap: 4px;
   }
 
-  .mosaic-empty-state {
+  .gallery-date-header {
+    font-size: 20px;
+  }
+
+  .gallery-container {
+    gap: 2rem;
+    padding: 0 0.5rem;
+  }
+
+  .gallery-empty-state {
     padding: 60px 20px;
     min-height: 50vh;
   }
 
-  .mosaic-empty-state p {
+  .gallery-empty-state p {
     font-size: 16px;
   }
 
