@@ -442,18 +442,22 @@ def archive():
 def api_archive_photos():
     """무한 스크롤을 위한 랜덤 사진 API"""
     import random
+    from sqlalchemy import or_
     
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 30, type=int)
-    tag_filter = request.args.get("tag")  # 태그 필터
+    tags_param = request.args.get("tags")  # 여러 태그 필터 (쉼표로 구분)
     
     # 모든 승인된 사진 가져오기
     query = Photo.query.filter_by(status="approved")
     
-    # 태그 필터 적용
-    if tag_filter:
-        # 태그가 포함된 사진 검색 (쉼표로 구분된 태그 문자열에서 검색)
-        query = query.filter(Photo.tags.contains(tag_filter))
+    # 태그 필터 적용 (여러 태그 중 하나라도 포함된 사진)
+    if tags_param:
+        tags_list = [tag.strip() for tag in tags_param.split(",") if tag.strip()]
+        if tags_list:
+            # OR 조건: 선택한 태그 중 하나라도 포함된 사진
+            tag_filters = [Photo.tags.contains(tag) for tag in tags_list]
+            query = query.filter(or_(*tag_filters))
     
     all_approved = query.all()
     

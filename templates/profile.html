@@ -44,11 +44,15 @@
       <div class="profile-date-groups">
         {% for date_group in organized_photos %}
           <div class="profile-date-section">
-            <div class="profile-date-header">
-              <h3>{{ date_group.date.strftime('%Y년 %m월 %d일') }}</h3>
-              <span class="date-photo-count">{{ date_group.total_count }}개</span>
+            <div class="profile-date-header" onclick="toggleDateSection(this)">
+              <div class="profile-date-header-left">
+                <h3>{{ date_group.date.strftime('%Y년 %m월 %d일') }}</h3>
+                <span class="date-photo-count">{{ date_group.total_count }}개</span>
+              </div>
+              <span class="date-expand-icon">▶</span>
             </div>
-            <div class="photo-list">
+            <div class="profile-photos-container">
+              <div class="photo-list">
               {% for photo in date_group.photos %}
                 <div class="photo-list-item">
                   <div class="photo-thumbnail">
@@ -87,6 +91,7 @@
                   </div>
                 </div>
               {% endfor %}
+              </div>
             </div>
           </div>
         {% endfor %}
@@ -103,4 +108,32 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+// 날짜 섹션 접기/펼치기
+function toggleDateSection(header) {
+  const dateSection = header.closest('.profile-date-section');
+  const photosContainer = dateSection.querySelector('.profile-photos-container');
+  const expandIcon = header.querySelector('.date-expand-icon');
+  
+  if (dateSection.classList.contains('expanded')) {
+    dateSection.classList.remove('expanded');
+    photosContainer.style.maxHeight = '0';
+    expandIcon.style.transform = 'rotate(0deg)';
+  } else {
+    dateSection.classList.add('expanded');
+    photosContainer.style.maxHeight = photosContainer.scrollHeight + 'px';
+    expandIcon.style.transform = 'rotate(90deg)';
+  }
+}
+
+// 페이지 로드 시 첫 번째 섹션 자동 확장
+document.addEventListener('DOMContentLoaded', function() {
+  const firstSection = document.querySelector('.profile-date-section');
+  if (firstSection) {
+    const header = firstSection.querySelector('.profile-date-header');
+    toggleDateSection(header);
+  }
+});
+</script>
 {% endblock %}
