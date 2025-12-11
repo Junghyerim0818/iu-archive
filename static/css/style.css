@@ -104,7 +104,7 @@ body.home-page {
 /* IU 텍스트 스타일 */
 .iu-container {
   position: fixed;
-  top: 18rem;
+  top: 15vh;
   left: 0;
   width: 100%;
   z-index: 1;
@@ -627,6 +627,7 @@ h1.iu-title {
 .mosaic-empty-state {
   text-align: center;
   padding: 80px 20px;
+  margin : 5rem auto;
   color: var(--text-gray);
   min-height: 60vh;
   display: flex;
