@@ -2477,12 +2477,6 @@ h1.iu-title {
     font-size: 16px;
   }
 
-
-  .container {
-    padding: 20px;
-    margin-top: 5rem;
-  }
-
   .day-content {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 12px;
