@@ -286,6 +286,43 @@
       }
     });
 
+    // 토스트 알림
+    function getToastContainer() {
+      let container = document.querySelector('.toast-container');
+      if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+      }
+      return container;
+    }
+
+    function showToast(message, { title = '알림', type = 'info', duration = 4500 } = {}) {
+      const container = getToastContainer();
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+
+      const safeMessage = (message || '').toString().replace(/\n/g, '<br>');
+      toast.innerHTML = `
+        <div class="toast-icon"></div>
+        <div class="toast-body">
+          <div class="toast-title">${title}</div>
+          <div class="toast-message">${safeMessage}</div>
+        </div>
+        <button class="toast-close" aria-label="닫기">&times;</button>
+      `;
+
+      container.appendChild(toast);
+
+      const close = () => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 200);
+      };
+
+      toast.querySelector('.toast-close')?.addEventListener('click', close);
+      setTimeout(close, duration);
+    }
+
     // 공통 아코디언 토글 함수
     function toggleAccordion(header, sectionSelector, contentSelector, iconSelector) {
       const section = header.closest(sectionSelector);

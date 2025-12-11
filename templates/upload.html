@@ -192,7 +192,7 @@ function handleFileSelect(input) {
   // 파일 크기 체크 (10MB)
   const invalidFiles = files.filter(file => file.size > MAX_FILE_SIZE);
   if (invalidFiles.length > 0) {
-    alert(`다음 파일들이 10MB를 초과합니다:\n${invalidFiles.map(f => f.name).join('\n')}`);
+    showToast(`다음 파일들이 10MB를 초과합니다:\n${invalidFiles.map(f => f.name).join('\n')}`, { type: 'error', title: '파일 크기 초과' });
     input.value = '';
     return;
   }
@@ -203,7 +203,7 @@ function handleFileSelect(input) {
   
   if (newFiles.length < files.length) {
     const duplicateCount = files.length - newFiles.length;
-    alert(`${duplicateCount}개의 중복 파일이 제외되었습니다.`);
+    showToast(`${duplicateCount}개의 중복 파일이 제외되었습니다.`, { type: 'info', title: '중복 파일 제외' });
   }
   
   if (newFiles.length === 0) {
@@ -217,14 +217,14 @@ function handleFileSelect(input) {
     
     // 남은 업로드 가능 개수가 0 이하면 아예 선택 불가
     if (remaining <= 0) {
-      alert(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n\n더 이상 파일을 추가할 수 없습니다.\n내일 다시 시도해주세요.`);
+      showToast(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n\n더 이상 파일을 추가할 수 없습니다.\n내일 다시 시도해주세요.`, { type: 'error', title: '업로드 한도 초과' });
       input.value = '';
       return;
     }
     
     // 새로 추가하려는 파일이 남은 개수를 초과하면 아예 선택 불가
     if (newFiles.length > remaining) {
-      alert(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n남은 업로드 가능: ${remaining}장\n선택하려는 파일: ${newFiles.length}장\n\n최대 ${remaining}장까지만 선택할 수 있습니다.`);
+      showToast(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n남은 업로드 가능: ${remaining}장\n선택하려는 파일: ${newFiles.length}장\n\n최대 ${remaining}장까지만 선택할 수 있습니다.`, { type: 'error', title: '업로드 한도 초과' });
       input.value = '';
       return;
     }
@@ -235,7 +235,7 @@ function handleFileSelect(input) {
     if (usedSize + totalNewSize > MAX_TOTAL_SIZE) {
       const remainingMB = (MAX_TOTAL_SIZE - usedSize) / (1024 * 1024);
       const newSizeMB = (totalNewSize / (1024 * 1024)).toFixed(2);
-      alert(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택하려는 파일 용량: ${newSizeMB}MB\n최대 용량: 100MB\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 작은 파일을 선택하거나 내일 다시 시도해주세요.`);
+      showToast(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택하려는 파일 용량: ${newSizeMB}MB\n최대 용량: 100MB\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 작은 파일을 선택하거나 내일 다시 시도해주세요.`, { type: 'error', title: '용량 한도 초과' });
       input.value = '';
       return;
     }
@@ -318,17 +318,17 @@ async function handleUpload() {
   const photos = document.getElementById('photos');
   
   if (!eventName) {
-    alert('행사명을 입력해주세요.');
+    showToast('행사명을 입력해주세요.', { type: 'error', title: '입력 필요' });
     return;
   }
   
   if (!takenDate) {
-    alert('촬영일을 선택해주세요.');
+    showToast('촬영일을 선택해주세요.', { type: 'error', title: '입력 필요' });
     return;
   }
   
   if (selectedFiles.length === 0) {
-    alert('파일을 선택해주세요.');
+    showToast('파일을 선택해주세요.', { type: 'error', title: '입력 필요' });
     return;
   }
   
@@ -344,14 +344,14 @@ async function handleUpload() {
   if (!isAdmin) {
     // 한 번에 선택한 파일이 20장을 초과하는 경우 즉시 차단
     if (selectedFiles.length > maxFiles) {
-      alert(`업로드 한도 초과!\n\n한 번에 최대 ${maxFiles}장까지만 업로드할 수 있습니다.\n선택한 파일: ${selectedFiles.length}장\n\n선택 파일 수를 줄여주세요.`);
+      showToast(`업로드 한도 초과!\n\n한 번에 최대 ${maxFiles}장까지만 업로드할 수 있습니다.\n선택한 파일: ${selectedFiles.length}장\n\n선택 파일 수를 줄여주세요.`, { type: 'error', title: '업로드 한도 초과' });
       return;
     }
     
     // 파일 개수 체크
     if (todayCount + selectedFiles.length > maxFiles) {
       const remaining = maxFiles - todayCount;
-      alert(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n\n남은 업로드 가능: ${remaining > 0 ? remaining : 0}장`);
+      showToast(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n\n남은 업로드 가능: ${remaining > 0 ? remaining : 0}장`, { type: 'error', title: '업로드 한도 초과' });
       return;
     }
     
@@ -361,7 +361,7 @@ async function handleUpload() {
     const totalNewSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
     
     if (oversizedFiles.length > 0) {
-      alert(`파일 크기 초과!\n\n다음 파일이 10MB를 초과합니다:\n${oversizedFiles.join('\n')}\n\n개별 파일 최대 크기: 10MB`);
+      showToast(`파일 크기 초과!\n\n다음 파일이 10MB를 초과합니다:\n${oversizedFiles.join('\n')}\n\n개별 파일 최대 크기: 10MB`, { type: 'error', title: '파일 크기 초과' });
       return;
     }
     
@@ -369,7 +369,7 @@ async function handleUpload() {
     if (usedSize + totalNewSize > MAX_TOTAL_SIZE) {
       const remainingMB = (MAX_TOTAL_SIZE - usedSize) / (1024 * 1024);
       const newSizeMB = (totalNewSize / (1024 * 1024)).toFixed(2);
-      alert(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택한 파일 용량: ${newSizeMB}MB\n최대 용량: 100MB\n\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB`);
+      showToast(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택한 파일 용량: ${newSizeMB}MB\n최대 용량: 100MB\n\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB`, { type: 'error', title: '용량 한도 초과' });
       return;
     }
   }
@@ -450,10 +450,8 @@ async function handleUpload() {
       
       // 성공 메시지 (페이지 새로고침 없이 파일 목록만 초기화)
       setTimeout(() => {
-        alert(result.message || `${result.count || selectedFiles.length}개의 파일이 업로드 대기열에 추가되었습니다.\n\n페이지를 벗어나도 업로드는 계속됩니다.`);
-        // 파일 선택 초기화 (페이지 새로고침 대신)
+        showToast(result.message || `${result.count || selectedFiles.length}개의 파일이 업로드 대기열에 추가되었습니다.\n\n페이지를 벗어나도 업로드는 계속됩니다.`, { type: 'success', title: '업로드 대기열 추가' });
         clearFiles();
-        // 폼 초기화
         document.getElementById('event_name').value = '';
         document.getElementById('tags').value = '';
       }, 1000);
@@ -520,7 +518,7 @@ async function handleUpload() {
       }
       
       // 경고 메시지 표시
-      alert(`[${errorTitle}]\n\n${errorMessage}`);
+      showToast(errorMessage, { type: 'error', title: errorTitle });
       
       uploadStatus.textContent = '오류 발생';
       progressFill.style.width = '0%';
@@ -565,7 +563,7 @@ async function handleUpload() {
       updateUploadStats(originalTodayCount, originalUsedSize, maxFiles, 100);
     }
     
-    alert(`[${errorTitle}]\n\n${errorMessage}`);
+    showToast(errorMessage, { type: 'error', title: errorTitle });
     submitBtn.disabled = false;
     submitBtn.innerHTML = '<span>업로드 시작</span><svg class="submit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
   }
@@ -605,7 +603,7 @@ fileUploadArea.addEventListener('drop', (e) => {
   
   const imageFiles = files.filter(file => file.type.startsWith('image/'));
   if (imageFiles.length !== files.length) {
-    alert('이미지 파일만 업로드할 수 있습니다.');
+    showToast('이미지 파일만 업로드할 수 있습니다.', { type: 'error', title: '파일 형식 오류' });
   }
   
   if (imageFiles.length === 0) {
@@ -615,7 +613,7 @@ fileUploadArea.addEventListener('drop', (e) => {
   // 파일 크기 체크 (10MB)
   const invalidFiles = imageFiles.filter(file => file.size > MAX_FILE_SIZE);
   if (invalidFiles.length > 0) {
-    alert(`다음 파일들이 10MB를 초과합니다:\n${invalidFiles.map(f => f.name).join('\n')}`);
+    showToast(`다음 파일들이 10MB를 초과합니다:\n${invalidFiles.map(f => f.name).join('\n')}`, { type: 'error', title: '파일 크기 초과' });
     return;
   }
   
@@ -625,7 +623,7 @@ fileUploadArea.addEventListener('drop', (e) => {
   
   if (newFiles.length < imageFiles.length) {
     const duplicateCount = imageFiles.length - newFiles.length;
-    alert(`${duplicateCount}개의 중복 파일이 제외되었습니다.`);
+    showToast(`${duplicateCount}개의 중복 파일이 제외되었습니다.`, { type: 'info', title: '중복 파일 제외' });
   }
   
   if (newFiles.length === 0) {
@@ -638,13 +636,13 @@ fileUploadArea.addEventListener('drop', (e) => {
     
     // 남은 업로드 가능 개수가 0 이하면 아예 선택 불가
     if (remaining <= 0) {
-      alert(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n\n더 이상 파일을 추가할 수 없습니다.\n내일 다시 시도해주세요.`);
+      showToast(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n\n더 이상 파일을 추가할 수 없습니다.\n내일 다시 시도해주세요.`, { type: 'error', title: '업로드 한도 초과' });
       return;
     }
     
     // 새로 추가하려는 파일이 남은 개수를 초과하면 아예 선택 불가
     if (newFiles.length > remaining) {
-      alert(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n남은 업로드 가능: ${remaining}장\n선택하려는 파일: ${newFiles.length}장\n\n최대 ${remaining}장까지만 선택할 수 있습니다.`);
+      showToast(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n남은 업로드 가능: ${remaining}장\n선택하려는 파일: ${newFiles.length}장\n\n최대 ${remaining}장까지만 선택할 수 있습니다.`, { type: 'error', title: '업로드 한도 초과' });
       return;
     }
     
@@ -656,7 +654,7 @@ fileUploadArea.addEventListener('drop', (e) => {
     
     if (usedSize + totalNewSize > MAX_TOTAL_SIZE) {
       const remainingMB = (MAX_TOTAL_SIZE - usedSize) / (1024 * 1024);
-      alert(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n최대 용량: 100MB\n\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 이상 파일을 추가할 수 없습니다.`);
+      showToast(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n최대 용량: 100MB\n\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 이상 파일을 추가할 수 없습니다.`, { type: 'error', title: '용량 한도 초과' });
       return;
     }
   }

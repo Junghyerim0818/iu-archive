@@ -260,6 +260,98 @@ h1.iu-title {
   color: #f87171;
 }
 
+/* 토스트 알림 */
+.toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 360px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(20, 20, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+  color: var(--text-white);
+  animation: toast-in 0.2s ease;
+}
+
+.toast.hide {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 6px;
+  background: #8ab4ff;
+  flex-shrink: 0;
+}
+
+.toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.toast-message {
+  font-size: 13px;
+  color: var(--text-gray);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.toast-close {
+  border: none;
+  background: transparent;
+  color: var(--text-gray);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 4px;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.toast-close:hover {
+  color: var(--text-white);
+  transform: scale(1.05);
+}
+
+.toast.toast-success .toast-icon {
+  background: #8bc34a;
+}
+
+.toast.toast-error .toast-icon {
+  background: #ef5350;
+}
+
+.toast.toast-info .toast-icon {
+  background: #8ab4ff;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* 업로드 아이콘 */
 .upload-icon {
   display: block;
