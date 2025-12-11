@@ -286,42 +286,81 @@
       }
     });
 
-    // 토스트 알림
-    function getToastContainer() {
-      let container = document.querySelector('.toast-container');
-      if (!container) {
-        container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
+    // 간단한 알림 모달
+    function showAlert(message, title = '알림', type = 'info') {
+      // 기존 모달이 있으면 제거
+      const existingModal = document.getElementById('alert-modal');
+      if (existingModal) {
+        existingModal.remove();
       }
-      return container;
-    }
 
-    function showToast(message, { title = '알림', type = 'info', duration = 4500 } = {}) {
-      const container = getToastContainer();
-      const toast = document.createElement('div');
-      toast.className = `toast toast-${type}`;
-
+      const modal = document.createElement('div');
+      modal.id = 'alert-modal';
+      modal.className = 'alert-modal';
+      
       const safeMessage = (message || '').toString().replace(/\n/g, '<br>');
-      toast.innerHTML = `
-        <div class="toast-icon"></div>
-        <div class="toast-body">
-          <div class="toast-title">${title}</div>
-          <div class="toast-message">${safeMessage}</div>
+      
+      // 타입별 아이콘
+      let iconSvg = '';
+      if (type === 'success') {
+        iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+      } else if (type === 'error') {
+        iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+      } else {
+        iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12.01" y2="16"></line><line x1="12" y1="12" x2="12.01" y2="12"></line></svg>';
+      }
+      
+      modal.innerHTML = `
+        <div class="alert-modal-backdrop" onclick="closeAlert()"></div>
+        <div class="alert-modal-content alert-modal-${type}">
+          <div class="alert-modal-header">
+            <div class="alert-modal-icon">${iconSvg}</div>
+            <h3 class="alert-modal-title">${title}</h3>
+          </div>
+          <div class="alert-modal-body">
+            <p>${safeMessage}</p>
+          </div>
+          <div class="alert-modal-footer">
+            <button class="btn btn-primary" onclick="closeAlert()">확인</button>
+          </div>
         </div>
-        <button class="toast-close" aria-label="닫기">&times;</button>
       `;
-
-      container.appendChild(toast);
-
-      const close = () => {
-        toast.classList.add('hide');
-        setTimeout(() => toast.remove(), 200);
+      
+      document.body.appendChild(modal);
+      
+      // 애니메이션을 위해 약간의 지연
+      setTimeout(() => {
+        modal.classList.add('show');
+      }, 10);
+      
+      // ESC 키로 닫기
+      const escHandler = (e) => {
+        if (e.key === 'Escape') {
+          closeAlert();
+          document.removeEventListener('keydown', escHandler);
+        }
       };
-
-      toast.querySelector('.toast-close')?.addEventListener('click', close);
-      setTimeout(close, duration);
+      document.addEventListener('keydown', escHandler);
     }
+    
+    function closeAlert() {
+      const modal = document.getElementById('alert-modal');
+      if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => modal.remove(), 200);
+      }
+    }
+    
+    // 전역으로 노출
+    window.showAlert = showAlert;
+    window.closeAlert = closeAlert;
+    
+    // showToast를 showAlert로 리다이렉트 (하위 호환성)
+    window.showToast = function(message, options = {}) {
+      const title = options.title || '알림';
+      const type = options.type || 'info';
+      showAlert(message, title, type);
+    };
 
     // 공통 아코디언 토글 함수
     function toggleAccordion(header, sectionSelector, contentSelector, iconSelector) {

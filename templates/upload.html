@@ -142,42 +142,17 @@
 <script>
 let selectedFiles = [];
 
-// showToast가 없을 때 업로드 페이지에서 독립적으로 동작하도록 정의
+// showToast가 없을 때를 대비한 간단한 폴백
 if (typeof window.showToast !== 'function') {
-  function getToastContainer() {
-    let container = document.querySelector('.toast-container');
-    if (!container) {
-      container = document.createElement('div');
-      container.className = 'toast-container';
-      document.body.appendChild(container);
+  window.showToast = function(message, options = {}) {
+    const title = options.title || '알림';
+    const type = options.type || 'info';
+    if (typeof showAlert === 'function') {
+      showAlert(message, title, type);
+    } else {
+      // 최후의 수단: 기본 alert
+      alert(`${title}\n\n${message}`);
     }
-    return container;
-  }
-
-  window.showToast = (message, { title = '알림', type = 'info', duration = 4500 } = {}) => {
-    const container = getToastContainer();
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-
-    const safeMessage = (message || '').toString().replace(/\n/g, '<br>');
-    toast.innerHTML = `
-      <div class="toast-icon"></div>
-      <div class="toast-body">
-        <div class="toast-title">${title}</div>
-        <div class="toast-message">${safeMessage}</div>
-      </div>
-      <button class="toast-close" aria-label="닫기">&times;</button>
-    `;
-
-    container.appendChild(toast);
-
-    const close = () => {
-      toast.classList.add('hide');
-      setTimeout(() => toast.remove(), 200);
-    };
-
-    toast.querySelector('.toast-close')?.addEventListener('click', close);
-    setTimeout(close, duration);
   };
 }
 
