@@ -285,6 +285,29 @@
         }
       }
     });
+
+    // 공통 아코디언 토글 함수
+    function toggleAccordion(header, sectionSelector, contentSelector, iconSelector) {
+      const section = header.closest(sectionSelector);
+      if (!section) return;
+      
+      const content = section.querySelector(contentSelector);
+      const icon = header.querySelector(iconSelector);
+      
+      if (section.classList.contains('expanded')) {
+        section.classList.remove('expanded');
+        if (content && !content.classList.contains('section-content')) {
+          content.style.maxHeight = '0';
+        }
+        if (icon) icon.style.transform = 'rotate(0deg)';
+      } else {
+        section.classList.add('expanded');
+        if (content && !content.classList.contains('section-content')) {
+          content.style.maxHeight = content.scrollHeight + 'px';
+        }
+        if (icon) icon.style.transform = 'rotate(90deg)';
+      }
+    }
   </script>
 </body>
 </html>

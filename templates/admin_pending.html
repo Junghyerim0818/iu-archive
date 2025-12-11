@@ -40,14 +40,14 @@
     <div class="admin-date-groups">
       {% for date_group in organized_photos %}
         <div class="admin-date-section">
-          <div class="admin-date-header">
+          <div class="section-header admin-date-header">
             <h2>{{ date_group.date.strftime('%Y년 %m월 %d일') }}</h2>
             <span class="date-photo-count">{{ date_group.total_count }}개</span>
           </div>
           
           {% for user_group in date_group.users %}
             <div class="admin-user-section">
-              <div class="admin-user-header" onclick="toggleUserSection(this)">
+              <div class="section-header admin-user-header" onclick="toggleUserSection(this)">
                 <div class="user-info">
                   {% if user_group.user.picture %}
                     <img src="{{ user_group.user.picture }}" alt="프로필" class="user-avatar">
@@ -67,7 +67,7 @@
                 </div>
               </div>
               
-              <div class="admin-photos-container">
+              <div class="section-content admin-photos-container">
                 <div class="admin-photos-grid">
                 {% for photo in user_group.photos %}
                   {% set photo_url = photo.file_url_cache if photo.file_url_cache else file_url(photo) %}
@@ -133,19 +133,7 @@
 
 <script>
 function toggleUserSection(header) {
-  const userSection = header.closest('.admin-user-section');
-  const photosContainer = userSection.querySelector('.admin-photos-container');
-  const expandIcon = header.querySelector('.user-expand-icon');
-  
-  if (userSection.classList.contains('expanded')) {
-    userSection.classList.remove('expanded');
-    photosContainer.style.maxHeight = '0';
-    expandIcon.style.transform = 'rotate(0deg)';
-  } else {
-    userSection.classList.add('expanded');
-    photosContainer.style.maxHeight = photosContainer.scrollHeight + 'px';
-    expandIcon.style.transform = 'rotate(90deg)';
-  }
+  toggleAccordion(header, '.admin-user-section', '.admin-photos-container', '.user-expand-icon');
 }
 
 // 사진 선택 토글

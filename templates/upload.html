@@ -21,7 +21,7 @@
   </div>
 
   <div class="upload-stats">
-    <div class="stat-card">
+    <div class="card stat-card">
       <div class="stat-label">오늘 업로드</div>
       <div class="stat-value">{{ today_count }} / {{ max_files }}장</div>
       {% if remaining_files != "무제한" %}
@@ -30,7 +30,7 @@
         </div>
       {% endif %}
     </div>
-    <div class="stat-card">
+    <div class="card stat-card">
       <div class="stat-label">사용 용량</div>
       <div class="stat-value">{{ "%.1f"|format(used_size_mb) }} / {{ max_size_mb }}MB</div>
       {% if remaining_size_mb != "무제한" %}
@@ -41,7 +41,7 @@
     </div>
   </div>
 
-  <div class="upload-form-container">
+  <div class="card card-lg upload-form-container">
     <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" class="upload-form">
       <div class="form-group">
         <label for="event_name">행사명</label>
@@ -142,6 +142,37 @@
 <script>
 let selectedFiles = [];
 
+// 공통 UI 업데이트 함수
+function updateUploadStats(todayCount, usedSize, maxFiles = 20, maxSizeMB = 100) {
+  const container = document.querySelector('.upload-container');
+  if (!container) return;
+  
+  container.setAttribute('data-today-count', todayCount);
+  container.setAttribute('data-used-size', usedSize);
+  
+  const statValue = document.querySelector('.stat-card .stat-value');
+  const statProgress = document.querySelector('.stat-card .progress-bar');
+  const sizeValue = document.querySelectorAll('.stat-card .stat-value')[1];
+  const sizeProgress = document.querySelectorAll('.stat-card .progress-bar')[1];
+  const MAX_TOTAL_SIZE = maxSizeMB * 1024 * 1024;
+  
+  if (statValue) {
+    statValue.textContent = `${todayCount} / ${maxFiles}장`;
+  }
+  if (statProgress) {
+    const progressPercent = Math.min((todayCount / maxFiles * 100), 100);
+    statProgress.style.width = `${progressPercent}%`;
+  }
+  if (sizeValue) {
+    const usedSizeMB = (usedSize / (1024 * 1024)).toFixed(1);
+    sizeValue.textContent = `${usedSizeMB} / ${maxSizeMB}MB`;
+  }
+  if (sizeProgress) {
+    const sizePercent = Math.min((usedSize / MAX_TOTAL_SIZE * 100), 100);
+    sizeProgress.style.width = `${sizePercent}%`;
+  }
+}
+
 function handleFileSelect(input) {
   const files = Array.from(input.files);
   
@@ -198,25 +229,18 @@ function handleFileSelect(input) {
       return;
     }
     
-    // 파일 개수는 OK, 이제 용량 체크
-    {
-      // 총 용량 체크
-      let totalNewSize = 0;
-      for (let i = 0; i < newFiles.length; i++) {
-        totalNewSize += newFiles[i].size;
-      }
-      
-      if (usedSize + totalNewSize > MAX_TOTAL_SIZE) {
-        // 용량이 부족하면 아예 선택 불가
-        const remainingMB = (MAX_TOTAL_SIZE - usedSize) / (1024 * 1024);
-        const newSizeMB = (totalNewSize / (1024 * 1024)).toFixed(2);
-        alert(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택하려는 파일 용량: ${newSizeMB}MB\n최대 용량: 100MB\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 작은 파일을 선택하거나 내일 다시 시도해주세요.`);
-        input.value = '';
-        return;
-      }
-      
-      selectedFiles = [...selectedFiles, ...newFiles];
+    // 총 용량 체크
+    const totalNewSize = newFiles.reduce((sum, file) => sum + file.size, 0);
+    
+    if (usedSize + totalNewSize > MAX_TOTAL_SIZE) {
+      const remainingMB = (MAX_TOTAL_SIZE - usedSize) / (1024 * 1024);
+      const newSizeMB = (totalNewSize / (1024 * 1024)).toFixed(2);
+      alert(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택하려는 파일 용량: ${newSizeMB}MB\n최대 용량: 100MB\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 작은 파일을 선택하거나 내일 다시 시도해주세요.`);
+      input.value = '';
+      return;
     }
+    
+    selectedFiles = [...selectedFiles, ...newFiles];
   } else {
     // 관리자는 제한 없음
     selectedFiles = [...selectedFiles, ...newFiles];
@@ -332,16 +356,9 @@ async function handleUpload() {
     }
     
     // 파일 크기 체크
-    let totalNewSize = 0;
-    const oversizedFiles = [];
-    
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
-      if (file.size > MAX_FILE_SIZE) {
-        oversizedFiles.push(`${file.name} (${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
-      }
-      totalNewSize += file.size;
-    }
+    const oversizedFiles = selectedFiles.filter(file => file.size > MAX_FILE_SIZE)
+      .map(file => `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
+    const totalNewSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
     
     if (oversizedFiles.length > 0) {
       alert(`파일 크기 초과!\n\n다음 파일이 10MB를 초과합니다:\n${oversizedFiles.join('\n')}\n\n개별 파일 최대 크기: 10MB`);
@@ -376,32 +393,7 @@ async function handleUpload() {
   if (!isAdmin) {
     const newTodayCount = todayCount + selectedFiles.length;
     const newUsedSize = usedSize + totalNewSize;
-    const newUsedSizeMB = (newUsedSize / (1024 * 1024)).toFixed(1);
-    
-    // data 속성 업데이트 (다음 파일 선택 시 정확한 값 사용)
-    container.setAttribute('data-today-count', newTodayCount);
-    container.setAttribute('data-used-size', newUsedSize);
-    
-    // UI 즉시 업데이트
-    const statValue = document.querySelector('.stat-card .stat-value');
-    const statProgress = document.querySelector('.stat-card .progress-bar');
-    const sizeValue = document.querySelectorAll('.stat-card .stat-value')[1];
-    const sizeProgress = document.querySelectorAll('.stat-card .progress-bar')[1];
-    
-    if (statValue) {
-      statValue.textContent = `${newTodayCount} / ${maxFiles}장`;
-    }
-    if (statProgress) {
-      const progressPercent = Math.min((newTodayCount / maxFiles * 100), 100);
-      statProgress.style.width = `${progressPercent}%`;
-    }
-    if (sizeValue) {
-      sizeValue.textContent = `${newUsedSizeMB} / 100MB`;
-    }
-    if (sizeProgress) {
-      const sizePercent = Math.min((newUsedSize / MAX_TOTAL_SIZE * 100), 100);
-      sizeProgress.style.width = `${sizePercent}%`;
-    }
+    updateUploadStats(newTodayCount, newUsedSize, maxFiles, 100);
   }
   
   // UI 업데이트
@@ -524,31 +516,7 @@ async function handleUpload() {
       
       // 에러 발생 시 업데이트된 개수 롤백
       if (!isAdmin) {
-        // 원래 값으로 복원
-        container.setAttribute('data-today-count', todayCount);
-        container.setAttribute('data-used-size', usedSize);
-        
-        // UI 롤백
-        const statValue = document.querySelector('.stat-card .stat-value');
-        const statProgress = document.querySelector('.stat-card .progress-bar');
-        const sizeValue = document.querySelectorAll('.stat-card .stat-value')[1];
-        const sizeProgress = document.querySelectorAll('.stat-card .progress-bar')[1];
-        
-        if (statValue) {
-          statValue.textContent = `${todayCount} / ${maxFiles}장`;
-        }
-        if (statProgress) {
-          const progressPercent = Math.min((todayCount / maxFiles * 100), 100);
-          statProgress.style.width = `${progressPercent}%`;
-        }
-        if (sizeValue) {
-          const usedSizeMB = (usedSize / (1024 * 1024)).toFixed(1);
-          sizeValue.textContent = `${usedSizeMB} / 100MB`;
-        }
-        if (sizeProgress) {
-          const sizePercent = Math.min((usedSize / MAX_TOTAL_SIZE * 100), 100);
-          sizeProgress.style.width = `${sizePercent}%`;
-        }
+        updateUploadStats(todayCount, usedSize, maxFiles, 100);
       }
       
       // 경고 메시지 표시
@@ -588,37 +556,13 @@ async function handleUpload() {
       const currentTodayCount = parseInt(container.getAttribute('data-today-count')) || 0;
       const currentUsedSize = parseInt(container.getAttribute('data-used-size')) || 0;
       const maxFiles = parseInt(container.getAttribute('data-max-files')) || 20;
-      const MAX_TOTAL_SIZE = 100 * 1024 * 1024;
       
       // 원래 값으로 복원 (업로드 전 값으로 되돌림)
-      const originalTodayCount = currentTodayCount - selectedFiles.length;
+      const originalTodayCount = Math.max(0, currentTodayCount - selectedFiles.length);
       const totalNewSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
-      const originalUsedSize = currentUsedSize - totalNewSize;
+      const originalUsedSize = Math.max(0, currentUsedSize - totalNewSize);
       
-      container.setAttribute('data-today-count', Math.max(0, originalTodayCount));
-      container.setAttribute('data-used-size', Math.max(0, originalUsedSize));
-      
-      // UI 롤백
-      const statValue = document.querySelector('.stat-card .stat-value');
-      const statProgress = document.querySelector('.stat-card .progress-bar');
-      const sizeValue = document.querySelectorAll('.stat-card .stat-value')[1];
-      const sizeProgress = document.querySelectorAll('.stat-card .progress-bar')[1];
-      
-      if (statValue) {
-        statValue.textContent = `${Math.max(0, originalTodayCount)} / ${maxFiles}장`;
-      }
-      if (statProgress) {
-        const progressPercent = Math.min((Math.max(0, originalTodayCount) / maxFiles * 100), 100);
-        statProgress.style.width = `${progressPercent}%`;
-      }
-      if (sizeValue) {
-        const usedSizeMB = (Math.max(0, originalUsedSize) / (1024 * 1024)).toFixed(1);
-        sizeValue.textContent = `${usedSizeMB} / 100MB`;
-      }
-      if (sizeProgress) {
-        const sizePercent = Math.min((Math.max(0, originalUsedSize) / MAX_TOTAL_SIZE * 100), 100);
-        sizeProgress.style.width = `${sizePercent}%`;
-      }
+      updateUploadStats(originalTodayCount, originalUsedSize, maxFiles, 100);
     }
     
     alert(`[${errorTitle}]\n\n${errorMessage}`);
