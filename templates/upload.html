@@ -142,6 +142,14 @@
 <script>
 let selectedFiles = [];
 
+// showToast가 아직 로드되지 않았을 때를 대비한 안전 가드
+if (typeof window.showToast !== 'function') {
+  window.showToast = (message, { title } = {}) => {
+    const text = title ? `[${title}]\n\n${message}` : message;
+    alert(text);
+  };
+}
+
 // 공통 UI 업데이트 함수
 function updateUploadStats(todayCount, usedSize, maxFiles = 20, maxSizeMB = 100) {
   const container = document.querySelector('.upload-container');
