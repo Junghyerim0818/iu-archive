@@ -149,8 +149,17 @@ function handleFileSelect(input) {
     return;
   }
   
+  // 할당량 체크 (파일 선택 시점에서 미리 체크)
+  const container = document.querySelector('.upload-container');
+  const todayCount = parseInt(container.getAttribute('data-today-count')) || 0;
+  const maxFiles = parseInt(container.getAttribute('data-max-files')) || 20;
+  const isAdmin = container.getAttribute('data-is-admin') === 'true';
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
+  const usedSize = parseInt(container.getAttribute('data-used-size')) || 0; // bytes
+  
   // 파일 크기 체크 (10MB)
-  const invalidFiles = files.filter(file => file.size > 10 * 1024 * 1024);
+  const invalidFiles = files.filter(file => file.size > MAX_FILE_SIZE);
   if (invalidFiles.length > 0) {
     alert(`다음 파일들이 10MB를 초과합니다:\n${invalidFiles.map(f => f.name).join('\n')}`);
     input.value = '';
@@ -166,7 +175,68 @@ function handleFileSelect(input) {
     alert(`${duplicateCount}개의 중복 파일이 제외되었습니다.`);
   }
   
-  selectedFiles = [...selectedFiles, ...newFiles];
+  if (newFiles.length === 0) {
+    input.value = '';
+    return;
+  }
+  
+  // 관리자가 아닌 경우 파일 개수 제한 체크
+  if (!isAdmin) {
+    const totalAfterAdd = todayCount + selectedFiles.length + newFiles.length;
+    if (totalAfterAdd > maxFiles) {
+      const remaining = maxFiles - todayCount - selectedFiles.length;
+      if (remaining <= 0) {
+        alert(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n\n더 이상 파일을 추가할 수 없습니다.`);
+        input.value = '';
+        return;
+      } else {
+        // 남은 개수만큼만 추가
+        const allowedFiles = newFiles.slice(0, remaining);
+        const rejectedCount = newFiles.length - allowedFiles.length;
+        if (rejectedCount > 0) {
+          alert(`업로드 한도 초과!\n\n오늘 업로드: ${todayCount}장\n선택한 파일: ${selectedFiles.length}장\n최대 업로드: ${maxFiles}장\n\n남은 업로드 가능: ${remaining}장\n\n${rejectedCount}개의 파일이 제외되었습니다.`);
+        }
+        selectedFiles = [...selectedFiles, ...allowedFiles];
+      }
+    } else {
+      // 총 용량 체크
+      let totalNewSize = 0;
+      for (let i = 0; i < newFiles.length; i++) {
+        totalNewSize += newFiles[i].size;
+      }
+      
+      if (usedSize + totalNewSize > MAX_TOTAL_SIZE) {
+        // 용량이 부족한 경우, 가능한 만큼만 추가
+        let allowedSize = 0;
+        const allowedFiles = [];
+        for (let i = 0; i < newFiles.length; i++) {
+          const file = newFiles[i];
+          if (usedSize + allowedSize + file.size <= MAX_TOTAL_SIZE) {
+            allowedSize += file.size;
+            allowedFiles.push(file);
+          } else {
+            break;
+          }
+        }
+        
+        if (allowedFiles.length === 0) {
+          const remainingMB = (MAX_TOTAL_SIZE - usedSize) / (1024 * 1024);
+          alert(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n최대 용량: 100MB\n\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 이상 파일을 추가할 수 없습니다.`);
+          input.value = '';
+          return;
+        } else if (allowedFiles.length < newFiles.length) {
+          const rejectedCount = newFiles.length - allowedFiles.length;
+          alert(`용량 한도 초과!\n\n${rejectedCount}개의 파일이 용량 부족으로 제외되었습니다.`);
+        }
+        selectedFiles = [...selectedFiles, ...allowedFiles];
+      } else {
+        selectedFiles = [...selectedFiles, ...newFiles];
+      }
+    }
+  } else {
+    // 관리자는 제한 없음
+    selectedFiles = [...selectedFiles, ...newFiles];
+  }
   
   // input의 files 업데이트
   const dataTransfer = new DataTransfer();
