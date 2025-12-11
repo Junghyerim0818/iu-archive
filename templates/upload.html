@@ -142,11 +142,42 @@
 <script>
 let selectedFiles = [];
 
-// showToast가 아직 로드되지 않았을 때를 대비한 안전 가드
+// showToast가 없을 때 업로드 페이지에서 독립적으로 동작하도록 정의
 if (typeof window.showToast !== 'function') {
-  window.showToast = (message, { title } = {}) => {
-    const text = title ? `[${title}]\n\n${message}` : message;
-    alert(text);
+  function getToastContainer() {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+    return container;
+  }
+
+  window.showToast = (message, { title = '알림', type = 'info', duration = 4500 } = {}) => {
+    const container = getToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+
+    const safeMessage = (message || '').toString().replace(/\n/g, '<br>');
+    toast.innerHTML = `
+      <div class="toast-icon"></div>
+      <div class="toast-body">
+        <div class="toast-title">${title}</div>
+        <div class="toast-message">${safeMessage}</div>
+      </div>
+      <button class="toast-close" aria-label="닫기">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    const close = () => {
+      toast.classList.add('hide');
+      setTimeout(() => toast.remove(), 200);
+    };
+
+    toast.querySelector('.toast-close')?.addEventListener('click', close);
+    setTimeout(close, duration);
   };
 }
 
