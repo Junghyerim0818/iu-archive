@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
+<!-- 우측 하단 추가하기 버튼 -->
+<div class="archive-upload-button">
+  <a href="{{ url_for('upload') }}" class="archive-upload-btn" title="사진 추가하기">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  </a>
+</div>
+
 <div class="archive-wrapper">
   <!-- 뷰 전환 버튼 -->
   <div class="archive-view-toggle">

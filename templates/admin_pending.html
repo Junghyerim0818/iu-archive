@@ -21,7 +21,7 @@
           
           {% for user_group in date_group.users %}
             <div class="admin-user-section">
-              <div class="admin-user-header">
+              <div class="admin-user-header" onclick="toggleUserSection(this)">
                 <div class="user-info">
                   {% if user_group.user.picture %}
                     <img src="{{ user_group.user.picture }}" alt="프로필" class="user-avatar">
@@ -35,10 +35,14 @@
                     <span class="user-email">{{ user_group.user.email }}</span>
                   </div>
                 </div>
-                <span class="user-photo-count">{{ user_group.photos|length }}장</span>
+                <div class="user-header-right">
+                  <span class="user-photo-count">{{ user_group.photos|length }}장</span>
+                  <span class="user-expand-icon">▶</span>
+                </div>
               </div>
               
-              <div class="admin-photos-grid">
+              <div class="admin-photos-container">
+                <div class="admin-photos-grid">
                 {% for photo in user_group.photos %}
                   <div class="admin-photo-card">
                     <div class="admin-photo-thumbnail" onclick="openImageModal('{{ file_url(photo) }}', '{{ photo.event_name }}')">
@@ -77,6 +81,7 @@
                     </div>
                   </div>
                 {% endfor %}
+                </div>
               </div>
             </div>
           {% endfor %}
@@ -93,4 +98,37 @@
     </div>
   {% endif %}
 </div>
+
+<script>
+function toggleUserSection(header) {
+  const userSection = header.closest('.admin-user-section');
+  const photosContainer = userSection.querySelector('.admin-photos-container');
+  const expandIcon = header.querySelector('.user-expand-icon');
+  
+  if (userSection.classList.contains('expanded')) {
+    userSection.classList.remove('expanded');
+    photosContainer.style.maxHeight = '0';
+    expandIcon.style.transform = 'rotate(0deg)';
+  } else {
+    userSection.classList.add('expanded');
+    photosContainer.style.maxHeight = photosContainer.scrollHeight + 'px';
+    expandIcon.style.transform = 'rotate(90deg)';
+  }
+}
+
+// 페이지 로드 시 모든 사용자 섹션을 기본적으로 펼침
+document.addEventListener('DOMContentLoaded', function() {
+  const userSections = document.querySelectorAll('.admin-user-section');
+  userSections.forEach(section => {
+    const header = section.querySelector('.admin-user-header');
+    const photosContainer = section.querySelector('.admin-photos-container');
+    const expandIcon = header.querySelector('.user-expand-icon');
+    
+    // 기본적으로 펼침
+    section.classList.add('expanded');
+    photosContainer.style.maxHeight = photosContainer.scrollHeight + 'px';
+    expandIcon.style.transform = 'rotate(90deg)';
+  });
+});
+</script>
 {% endblock %}
