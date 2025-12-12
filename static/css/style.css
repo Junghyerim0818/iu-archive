@@ -783,6 +783,14 @@ h1.iu-title {
   padding-top: 5rem;
 }
 
+/* 데스크톱 레이아웃: 왼쪽 사이드바 + 오른쪽 콘텐츠 */
+.archive-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  max-width: 100%;
+}
+
 .archive-view-toggle {
   position: fixed;
   top: 20px;
@@ -828,18 +836,19 @@ h1.iu-title {
   height: 18px;
 }
 
-/* 오른쪽 사이드바 컨테이너 (통계 + 태그 필터) */
+/* 왼쪽 사이드바 컨테이너 (통계 + 태그 필터) */
 .archive-sidebar {
-  position: fixed;
-  top: 100px;
-  right: 20px;
-  width: 250px;
+  position: sticky;
+  top: 20px; /* 뷰 전환 버튼과 같은 top 위치 */
+  width: 280px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   z-index: 998;
-  max-height: calc(100vh - 120px);
+  max-height: calc(100vh - 40px); /* top 20px + 하단 여백 20px */
   overflow-y: auto;
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 .archive-sidebar::-webkit-scrollbar {
@@ -872,6 +881,8 @@ h1.iu-title {
   border-radius: 12px;
   font-size: 14px;
   flex-shrink: 0;
+  /* 뷰 전환 버튼과 유사한 스타일 */
+  min-height: fit-content;
 }
 
 .archive-stat-item {
@@ -894,14 +905,17 @@ h1.iu-title {
 }
 
 
+/* 오른쪽 콘텐츠 영역 */
+.archive-content-area {
+  flex: 1;
+  min-width: 0;
+}
+
 /* 갤러리 뷰 */
 .archive-gallery-view {
   width: 100%;
   min-height: 100vh;
-  padding: 5rem 0;
 }
-
-/* 날짜별 뷰용 통계 */
 
 .gallery-tag-filter-sidebar {
   width: 100%;
@@ -1015,7 +1029,6 @@ h1.iu-title {
   padding: 0 1rem;
   max-width: 1400px;
   margin: 0 auto;
-  padding-right: 290px; /* 태그 필터 공간 확보 */
 }
 
 .gallery-tag-section {
@@ -1141,7 +1154,7 @@ h1.iu-title {
 }
 
 .date-accordion {
-  margin-bottom: 8px;
+  margin: 1rem;
 }
 
 .year-item, .month-item, .day-item {
@@ -2661,7 +2674,7 @@ h1.iu-title {
 }
 
 .reject-btn {
-  background: #000;
+  background: #1a1a1a;
   color: white;
   border: 1px solid white;
 }
@@ -2683,6 +2696,10 @@ h1.iu-title {
 
   .iu-container {
     top: 8rem;
+  }
+
+  .archive-container{
+    margin: auto;
   }
 
   .archive-wrapper {
@@ -2725,6 +2742,10 @@ h1.iu-title {
     padding: 0 0.5rem;
   }
 
+  .archive-layout {
+    flex-direction: column;
+  }
+
   .archive-sidebar {
     position: relative;
     top: auto;
@@ -2732,6 +2753,7 @@ h1.iu-title {
     width: 100%;
     max-height: none;
     margin-bottom: 1.5rem;
+    align-self: stretch;
   }
 
   .archive-stats {
@@ -2751,11 +2773,6 @@ h1.iu-title {
     width: 100%;
     max-height: 300px;
     padding: 12px;
-  }
-
-
-  .gallery-container {
-    padding-right: 1rem;
   }
 
   .tag-filter-header span {
@@ -2813,6 +2830,7 @@ h1.iu-title {
 
   .admin-date-section {
     gap: 1.5rem;
+    margin: 1.5rem;
   }
 
   .admin-user-section {

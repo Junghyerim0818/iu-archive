@@ -214,17 +214,26 @@ function handleFileSelect(input) {
   const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
   const usedSize = parseInt(container.getAttribute('data-used-size')) || 0; // bytes
   
-  // 파일 크기 체크 (10MB)
+  // 파일 크기 체크 (10MB) - 큰 파일만 필터링
+  const validFiles = files.filter(file => file.size <= MAX_FILE_SIZE);
   const invalidFiles = files.filter(file => file.size > MAX_FILE_SIZE);
+  
+  // 10MB를 넘는 파일이 있으면 알림만 표시 (선택은 계속 진행)
   if (invalidFiles.length > 0) {
-    showToast(`다음 파일들이 10MB를 초과합니다:\n${invalidFiles.map(f => f.name).join('\n')}`, { type: 'error', title: '파일 크기 초과' });
-    input.value = '';
+    showToast(`${invalidFiles.length}개의 파일이 10MB를 초과하여 제외되었습니다:\n${invalidFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n')}`, { type: 'warning', title: '파일 크기 초과' });
+  }
+  
+  // 유효한 파일만 사용
+  if (validFiles.length === 0) {
+    if (invalidFiles.length > 0) {
+      input.value = '';
+    }
     return;
   }
   
   // 기존 파일에 새 파일 추가 (중복 제거)
   const existingNames = new Set(selectedFiles.map(f => f.name + f.size));
-  const newFiles = files.filter(file => !existingNames.has(file.name + file.size));
+  const newFiles = validFiles.filter(file => !existingNames.has(file.name + file.size));
   
   if (newFiles.length < files.length) {
     const duplicateCount = files.length - newFiles.length;
@@ -383,13 +392,25 @@ async function handleUpload() {
       return;
     }
     
-    // 파일 크기 체크
-    const oversizedFiles = selectedFiles.filter(file => file.size > MAX_FILE_SIZE)
-      .map(file => `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
+    // 파일 크기 체크 (이미 선택된 파일 중 큰 파일이 있으면 제외)
+    const oversizedFiles = selectedFiles.filter(file => file.size > MAX_FILE_SIZE);
     
     if (oversizedFiles.length > 0) {
-      showToast(`파일 크기 초과!\n\n다음 파일이 10MB를 초과합니다:\n${oversizedFiles.join('\n')}\n\n개별 파일 최대 크기: 10MB`, { type: 'error', title: '파일 크기 초과' });
-      return;
+      // 큰 파일 제외
+      selectedFiles = selectedFiles.filter(file => file.size <= MAX_FILE_SIZE);
+      showToast(`${oversizedFiles.length}개의 파일이 10MB를 초과하여 제외되었습니다:\n${oversizedFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n')}`, { type: 'warning', title: '파일 크기 초과' });
+      
+      // 파일 리스트 업데이트
+      const fileInput = document.getElementById('photos');
+      const dataTransfer = new DataTransfer();
+      selectedFiles.forEach(file => dataTransfer.items.add(file));
+      fileInput.files = dataTransfer.files;
+      displayFileList();
+      
+      // 선택된 파일이 없으면 업로드 중단
+      if (selectedFiles.length === 0) {
+        return;
+      }
     }
     
     // 총 용량 체크
@@ -774,16 +795,23 @@ fileUploadArea.addEventListener('drop', (e) => {
     return;
   }
   
-  // 파일 크기 체크 (10MB)
+  // 파일 크기 체크 (10MB) - 큰 파일만 필터링
+  const validFiles = imageFiles.filter(file => file.size <= MAX_FILE_SIZE);
   const invalidFiles = imageFiles.filter(file => file.size > MAX_FILE_SIZE);
+  
+  // 10MB를 넘는 파일이 있으면 알림만 표시 (선택은 계속 진행)
   if (invalidFiles.length > 0) {
-    showToast(`다음 파일들이 10MB를 초과합니다:\n${invalidFiles.map(f => f.name).join('\n')}`, { type: 'error', title: '파일 크기 초과' });
+    showToast(`${invalidFiles.length}개의 파일이 10MB를 초과하여 제외되었습니다:\n${invalidFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n')}`, { type: 'warning', title: '파일 크기 초과' });
+  }
+  
+  // 유효한 파일만 사용
+  if (validFiles.length === 0) {
     return;
   }
   
   // 기존 파일에 새 파일 추가 (중복 제거)
   const existingNames = new Set(selectedFiles.map(f => f.name + f.size));
-  const newFiles = imageFiles.filter(file => !existingNames.has(file.name + file.size));
+  const newFiles = validFiles.filter(file => !existingNames.has(file.name + file.size));
   
   if (newFiles.length < imageFiles.length) {
     const duplicateCount = imageFiles.length - newFiles.length;
