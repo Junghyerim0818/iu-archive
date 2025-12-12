@@ -2317,11 +2317,6 @@ h1.iu-title {
   border-color: rgba(255, 255, 255, 0.8);
 }
 
-.photo-checkbox:checked + .photo-checkbox-label {
-  background: rgba(129, 199, 132, 0.9);
-  border-color: #81c784;
-}
-
 .photo-checkbox:checked + .photo-checkbox-label::after {
   content: '';
   position: absolute;

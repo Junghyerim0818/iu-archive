@@ -118,7 +118,7 @@
           <div class="upload-progress-bar">
             <div class="upload-progress-fill" id="progressFill"></div>
           </div>
-          <p class="upload-progress-text">업로드가 백그라운드에서 진행됩니다. 페이지를 벗어나셔도 됩니다.</p>
+          <p class="upload-progress-text">업로드 중입니다. 완료될 때까지 페이지를 벗어나지 마세요.</p>
         </div>
       </div>
 
@@ -133,7 +133,6 @@
 
       <div class="form-note">
         <p>업로드된 사진은 관리자 승인 후 아카이브에 공개됩니다.</p>
-        <p>업로드는 백그라운드에서 진행되므로 시작 후 페이지를 떠나셔도 됩니다.</p>
       </div>
     </form>
   </div>
@@ -424,25 +423,23 @@ async function handleUpload() {
   progressFill.style.width = '10%';
   uploadStatus.textContent = '서버에 파일 전송 중...';
   
-  // 업로드 시작 플래그 설정 (페이지를 벗어나도 업로드가 계속되도록)
+  // 업로드 시작 플래그 설정
   let uploadInProgress = true;
   
-  // 페이지를 벗어날 때 경고 (선택사항)
+  // 페이지를 벗어날 때 경고
   const beforeUnloadHandler = (e) => {
     if (uploadInProgress) {
-      // 일부 브라우저에서는 커스텀 메시지를 표시하지 않음
       e.preventDefault();
-      e.returnValue = '';
+      e.returnValue = '업로드가 진행 중입니다. 페이지를 벗어나면 업로드가 취소될 수 있습니다. 정말 나가시겠습니까?';
+      return e.returnValue;
     }
   };
   window.addEventListener('beforeunload', beforeUnloadHandler);
   
   try {
-    // keepalive 옵션으로 페이지를 벗어나도 요청이 계속되도록 함
     const response = await fetch('/api/upload', {
       method: 'POST',
-      body: formData,
-      keepalive: true  // 페이지를 벗어나도 요청이 계속됨
+      body: formData
     });
 
     const contentType = response.headers.get('content-type');
@@ -462,7 +459,7 @@ async function handleUpload() {
       window.removeEventListener('beforeunload', beforeUnloadHandler);
       
       progressFill.style.width = '100%';
-      uploadStatus.textContent = '파일 전송 완료! 백그라운드에서 저장 중입니다.';
+      uploadStatus.textContent = '업로드 완료!';
       
       // 버튼 텍스트를 "업로드 완료!"로 변경
       submitBtn.disabled = false;
@@ -470,7 +467,7 @@ async function handleUpload() {
       
       // 성공 메시지 (페이지 새로고침 없이 파일 목록만 초기화)
       setTimeout(() => {
-        showToast(result.message || `${result.count || selectedFiles.length}개의 파일이 업로드되었습니다.\n\n백그라운드에서 저장이 완료됩니다.`, { type: 'success', title: '업로드 완료' });
+        showToast(result.message || `${result.count || selectedFiles.length}개의 파일이 업로드되었습니다.`, { type: 'success', title: '업로드 완료' });
         clearFiles();
         document.getElementById('event_name').value = '';
         document.getElementById('tags').value = '';
@@ -558,11 +555,11 @@ async function handleUpload() {
     let errorTitle = '업로드 오류';
     let errorMessage = '';
     
-    // 네트워크 오류인 경우에도 keepalive로 인해 서버에서 처리 중일 수 있음
+    // 네트워크 오류 처리
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       errorTitle = '네트워크 오류';
-      errorMessage = '네트워크 연결에 문제가 발생했습니다.\n\n서버에서 업로드가 계속 처리될 수 있습니다.\n잠시 후 페이지를 새로고침하여 확인해주세요.';
-      uploadStatus.textContent = '네트워크 오류 (서버 처리 중일 수 있음)';
+      errorMessage = '네트워크 연결에 문제가 발생했습니다.\n\n잠시 후 다시 시도해주세요.';
+      uploadStatus.textContent = '네트워크 오류';
     } else if (error instanceof SyntaxError) {
       errorTitle = '응답 처리 오류';
       errorMessage = '서버 응답을 처리할 수 없습니다.\n\n서버 상태를 확인해주세요.\n잠시 후 다시 시도해주세요.';
@@ -574,7 +571,7 @@ async function handleUpload() {
       progressFill.style.width = '0%';
     }
     
-    // 네트워크 오류가 아닌 경우에만 롤백 (네트워크 오류는 서버에서 처리 중일 수 있음)
+    // 네트워크 오류가 아닌 경우에만 롤백
     if (!(error.name === 'TypeError' && error.message.includes('fetch')) && !isAdmin) {
       const container = document.querySelector('.upload-container');
       const currentTodayCount = parseInt(container.getAttribute('data-today-count')) || 0;
