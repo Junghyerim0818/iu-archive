@@ -914,13 +914,15 @@ h1.iu-title {
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 30px;
-  padding: 0;
-  height: 56px; /* 모든 상단 요소와 같은 높이 */
-  overflow: hidden;
+  padding: 8px 12px;
+  min-height: 56px; /* 최소 높이 */
+  max-height: 56px; /* 최대 높이 (스크롤 가능) */
+  overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   box-sizing: border-box;
 }
 
@@ -942,50 +944,16 @@ h1.iu-title {
   background: rgba(255, 255, 255, 0.3);
 }
 
-.tag-filter-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 0 12px;
-  padding: 0;
-  border-bottom: none;
-  white-space: nowrap;
-  height: 100%;
-  flex-shrink: 0;
-  min-width: fit-content;
-}
 
-.tag-filter-header span {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-white);
-}
-
-.tag-filter-clear {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--text-white);
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
-
-.tag-filter-clear:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.4);
-}
 
 .tag-filter-list {
   display: flex;
   flex-direction: row;
-  gap: 6px;
   flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
   overflow: visible;
-  padding: 0 12px;
-  height: 100%;
+  width: 100%;
   flex: 1;
 }
 
@@ -1002,16 +970,17 @@ h1.iu-title {
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tag-filter-btn .tag-name {
-  flex: 1;
+  flex-shrink: 0;
 }
 
 .tag-filter-btn .tag-count {
   font-size: 12px;
   color: var(--text-gray);
-  margin-left: 8px;
+  margin-left: 0;
 }
 
 .tag-filter-btn:hover {
@@ -1429,7 +1398,7 @@ h1.iu-title {
 .stat-label {
   font-size: 13px;
   color: var(--text-gray);
-  margin-bottom: 8px;
+  margin-bottom: 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1438,7 +1407,7 @@ h1.iu-title {
   font-size: 24px;
   font-weight: 700;
   color: var(--text-white);
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .stat-progress {
@@ -2766,20 +2735,12 @@ h1.iu-title {
   }
 
   .gallery-tag-filter-sidebar {
-    height: 44px;
-    min-width: 0;
-  }
-
-  .tag-filter-header {
-    margin: 0 8px;
-  }
-
-  .tag-filter-header span {
-    font-size: 12px;
+    min-height: 44px;
+    max-height: 44px;
+    padding: 6px 10px;
   }
 
   .tag-filter-list {
-    padding: 0 8px;
     gap: 4px;
   }
 

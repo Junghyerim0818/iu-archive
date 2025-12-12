@@ -25,19 +25,15 @@
       </div>
     </div>
     
-    <!-- 태그 필터 -->
-    <div class="gallery-tag-filter-sidebar" id="tagFilter">
-      <div class="tag-filter-header">
-        <span>태그 필터 <span id="selectedTagsCount" style="color: var(--text-gray); font-size: 12px;"></span></span>
-        <button class="tag-filter-clear" id="clearTagFilter" style="display: none;">전체</button>
-      </div>
-      <div class="tag-filter-list" id="tagFilterList">
-        <div class="loading-indicator">
-          <div class="loading-spinner"></div>
-          <p>태그를 불러오는 중...</p>
+      <!-- 태그 필터 -->
+      <div class="gallery-tag-filter-sidebar" id="tagFilter">
+        <div class="tag-filter-list" id="tagFilterList">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            <p>태그를 불러오는 중...</p>
+          </div>
         </div>
       </div>
-    </div>
 
     <!-- 뷰 전환 버튼 -->
     <div class="archive-view-toggle">
@@ -212,7 +208,6 @@ const galleryContainer = document.getElementById('galleryContainer');
 const loadingIndicator = document.getElementById('loadingIndicator');
 const galleryEmptyState = document.getElementById('galleryEmptyState');
 const tagFilterList = document.getElementById('tagFilterList');
-const clearTagFilterBtn = document.getElementById('clearTagFilter');
 
 // 태그 목록 로드
 function loadTags() {
@@ -251,15 +246,6 @@ function filterByTag(tag) {
     selectedTags.push(tag);
   }
   
-  // 필터 초기화 버튼 표시/숨김
-  if (selectedTags.length > 0) {
-    clearTagFilterBtn.style.display = 'block';
-    document.getElementById('selectedTagsCount').textContent = `(${selectedTags.length})`;
-  } else {
-    clearTagFilterBtn.style.display = 'none';
-    document.getElementById('selectedTagsCount').textContent = '';
-  }
-  
   // 태그 버튼 활성화 상태 업데이트
   document.querySelectorAll('.tag-filter-btn').forEach(btn => {
     const btnTag = btn.getAttribute('data-tag');
@@ -277,21 +263,6 @@ function filterByTag(tag) {
   loadGalleryPhotos();
 }
 
-// 필터 초기화
-clearTagFilterBtn.addEventListener('click', () => {
-  selectedTags = [];
-  clearTagFilterBtn.style.display = 'none';
-  document.getElementById('selectedTagsCount').textContent = '';
-  document.querySelectorAll('.tag-filter-btn').forEach(btn => {
-    btn.classList.remove('active');
-  });
-  
-  // 갤러리 초기화 및 재로드
-  photosByDate = {};
-  currentPage = 1;
-  hasMore = true;
-  loadGalleryPhotos();
-});
 
 function loadGalleryPhotos() {
   if (isLoading || !hasMore) return;
