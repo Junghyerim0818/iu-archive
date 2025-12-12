@@ -286,70 +286,102 @@
       }
     });
 
-    // 간단한 알림 모달
-    function showAlert(message, title = '알림', type = 'info') {
-      // 기존 모달이 있으면 제거
-      const existingModal = document.getElementById('alert-modal');
-      if (existingModal) {
-        existingModal.remove();
-      }
-
-      const modal = document.createElement('div');
-      modal.id = 'alert-modal';
-      modal.className = 'alert-modal';
+    // 간단한 알림 모달 (메모리 최적화)
+    (function() {
+      let alertModal = null;
+      let escHandler = null;
       
-      const safeMessage = (message || '').toString().replace(/\n/g, '<br>');
-      
-      // 타입별 아이콘
-      let iconSvg = '';
-      if (type === 'success') {
-        iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-      } else if (type === 'error') {
-        iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
-      } else {
-        iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12.01" y2="16"></line><line x1="12" y1="12" x2="12.01" y2="12"></line></svg>';
-      }
-      
-      modal.innerHTML = `
-        <div class="alert-modal-backdrop" onclick="closeAlert()"></div>
-        <div class="alert-modal-content alert-modal-${type}">
-          <div class="alert-modal-header">
-            <div class="alert-modal-icon">${iconSvg}</div>
-            <h3 class="alert-modal-title">${title}</h3>
-          </div>
-          <div class="alert-modal-body">
-            <p>${safeMessage}</p>
-          </div>
-          <div class="alert-modal-footer">
-            <button class="btn btn-primary" onclick="closeAlert()">확인</button>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(modal);
-      
-      // 애니메이션을 위해 약간의 지연
-      setTimeout(() => {
-        modal.classList.add('show');
-      }, 10);
-      
-      // ESC 키로 닫기
-      const escHandler = (e) => {
-        if (e.key === 'Escape') {
+      function showAlert(message, title = '알림', type = 'info') {
+        // 기존 모달이 있으면 제거
+        if (alertModal) {
           closeAlert();
+        }
+        
+        // 모달 재사용 (메모리 절약)
+        alertModal = document.createElement('div');
+        alertModal.id = 'alert-modal';
+        alertModal.className = 'alert-modal';
+        
+        const safeMessage = (message || '').toString().replace(/\n/g, '<br>');
+        
+        // 타입별 아이콘
+        let iconSvg = '';
+        if (type === 'success') {
+          iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        } else if (type === 'error') {
+          iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+        } else {
+          iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12.01" y2="16"></line><line x1="12" y1="12" x2="12.01" y2="12"></line></svg>';
+        }
+        
+        alertModal.innerHTML = `
+          <div class="alert-modal-backdrop"></div>
+          <div class="alert-modal-content alert-modal-${type}">
+            <div class="alert-modal-header">
+              <div class="alert-modal-icon">${iconSvg}</div>
+              <h3 class="alert-modal-title">${title}</h3>
+            </div>
+            <div class="alert-modal-body">
+              <p>${safeMessage}</p>
+            </div>
+            <div class="alert-modal-footer">
+              <button class="btn btn-primary">확인</button>
+            </div>
+          </div>
+        `;
+        
+        // 이벤트 리스너 등록 (인라인 핸들러 제거로 메모리 절약)
+        const backdrop = alertModal.querySelector('.alert-modal-backdrop');
+        const confirmBtn = alertModal.querySelector('.btn-primary');
+        const closeFn = () => closeAlert();
+        
+        backdrop.addEventListener('click', closeFn);
+        confirmBtn.addEventListener('click', closeFn);
+        
+        document.body.appendChild(alertModal);
+        
+        // 애니메이션을 위해 약간의 지연
+        requestAnimationFrame(() => {
+          if (alertModal) {
+            alertModal.classList.add('show');
+          }
+        });
+        
+        // ESC 키로 닫기 (전역 핸들러 재사용)
+        if (escHandler) {
           document.removeEventListener('keydown', escHandler);
         }
-      };
-      document.addEventListener('keydown', escHandler);
-    }
-    
-    function closeAlert() {
-      const modal = document.getElementById('alert-modal');
-      if (modal) {
-        modal.classList.remove('show');
-        setTimeout(() => modal.remove(), 200);
+        escHandler = (e) => {
+          if (e.key === 'Escape' && alertModal) {
+            closeAlert();
+          }
+        };
+        document.addEventListener('keydown', escHandler, { once: false });
       }
-    }
+      
+      function closeAlert() {
+        if (alertModal) {
+          alertModal.classList.remove('show');
+          // 애니메이션 완료 후 제거
+          setTimeout(() => {
+            if (alertModal && alertModal.parentNode) {
+              alertModal.parentNode.removeChild(alertModal);
+            }
+            alertModal = null;
+            
+            // ESC 핸들러 제거
+            if (escHandler) {
+              document.removeEventListener('keydown', escHandler);
+              escHandler = null;
+            }
+          }, 200);
+        }
+      }
+      
+      // 전역으로 노출
+      window.showAlert = showAlert;
+      window.closeAlert = closeAlert;
+    })();
     
     // 전역으로 노출
     window.showAlert = showAlert;
