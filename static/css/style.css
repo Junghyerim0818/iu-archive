@@ -882,13 +882,13 @@ h1.iu-title {
 .archive-stat-item .stat-label {
   color: var(--text-gray);
   font-weight: 500;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .archive-stat-item .stat-value {
   color: var(--text-white);
   font-weight: 600;
-  font-size: 16px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
@@ -917,7 +917,7 @@ h1.iu-title {
   overflow: hidden;
   position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 }
 
 .gallery-tag-filter-sidebar::-webkit-scrollbar {
@@ -941,11 +941,12 @@ h1.iu-title {
 .tag-filter-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: none;
   white-space: nowrap;
+  flex-direction: row;
+  align-items: center;
 }
 
 .tag-filter-header span {
@@ -2755,15 +2756,19 @@ h1.iu-title {
   }
 
   .archive-stats {
-    width: 100%;
-    margin-bottom: 1rem;
     padding: 12px;
     flex-direction: row;
     justify-content: space-around;
   }
 
+  .stat-label .stat-value{
+    font-size: 12px;
+    margin: 0 0 0 0.5rem;
+    align-items: center;
+  }
+
   .archive-stat-item {
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
   }
 
