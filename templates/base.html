@@ -360,14 +360,17 @@
       let escHandler = null;
       
       function showAlert(message, title = '알림', type = 'info', persistent = false) {
-        // persistent가 true이고 기존 모달이 있으면 제거하지 않음 (경고창 유지)
-        if (alertModal && !persistent) {
-          closeAlert();
-        }
-        
-        // persistent가 true이고 기존 모달이 있으면 새 모달을 만들지 않음
-        if (alertModal && persistent) {
-          return;
+        // 기존 모달이 persistent인 경우 새 모달을 만들지 않음 (경고창 유지)
+        if (alertModal) {
+          const isPersistent = alertModal.getAttribute('data-persistent') === 'true';
+          if (isPersistent) {
+            // 기존 경고창이 persistent이면 새 모달을 만들지 않음
+            return;
+          }
+          // 기존 모달이 persistent가 아니면 닫기
+          if (!persistent) {
+            closeAlert();
+          }
         }
         
         // 모달 재사용 (메모리 절약)
@@ -411,8 +414,12 @@
         const confirmBtn = alertModal.querySelector('.btn-primary');
         const closeFn = () => closeAlert();
         
-        // 백드롭 클릭으로 닫기 (항상 허용)
-        backdrop.addEventListener('click', closeFn);
+        // persistent가 true이면 백드롭 클릭과 ESC 키로 닫히지 않도록
+        if (persistent) {
+          backdrop.style.pointerEvents = 'none';
+        } else {
+          backdrop.addEventListener('click', closeFn);
+        }
         confirmBtn.addEventListener('click', closeFn);
         
         document.body.appendChild(alertModal);
@@ -424,13 +431,17 @@
           }
         });
         
-        // ESC 키로 닫기 (항상 허용)
+        // ESC 키로 닫기
         if (escHandler) {
           document.removeEventListener('keydown', escHandler);
         }
         escHandler = (e) => {
           if (e.key === 'Escape' && alertModal) {
-            closeAlert();
+            const isPersistent = alertModal.getAttribute('data-persistent') === 'true';
+            // persistent가 true이면 ESC 키로도 닫히지 않도록
+            if (!isPersistent) {
+              closeAlert();
+            }
           }
         };
         document.addEventListener('keydown', escHandler, { once: false });
