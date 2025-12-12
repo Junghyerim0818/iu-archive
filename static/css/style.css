@@ -786,7 +786,7 @@ h1.iu-title {
 /* 데스크톱 레이아웃: 왼쪽 사이드바 + 오른쪽 콘텐츠 */
 .archive-layout {
   display: flex;
-  gap: 20px;
+  gap: 12px; /* 슬림한 왼쪽 메뉴 여백 */
   align-items: flex-start;
   max-width: 100%;
 }
@@ -840,10 +840,10 @@ h1.iu-title {
 .archive-sidebar {
   position: sticky;
   top: 20px; /* 뷰 전환 버튼과 같은 top 위치 */
-  width: 280px;
+  width: 200px; /* 갤러리/날짜별 메뉴처럼 슬림하게 */
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   z-index: 998;
   max-height: calc(100vh - 40px); /* top 20px + 하단 여백 20px */
   overflow-y: auto;
@@ -873,13 +873,13 @@ h1.iu-title {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  font-size: 14px;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  font-size: 13px;
   flex-shrink: 0;
   /* 뷰 전환 버튼과 유사한 스타일 */
   min-height: fit-content;
@@ -894,13 +894,13 @@ h1.iu-title {
 .archive-stat-item .stat-label {
   color: var(--text-gray);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .archive-stat-item .stat-value {
   color: var(--text-white);
   font-weight: 600;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.2;
 }
 
@@ -919,13 +919,13 @@ h1.iu-title {
 
 .gallery-tag-filter-sidebar {
   width: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 16px;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px;
   overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   flex: 1;
   min-height: 0;
 }
