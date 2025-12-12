@@ -1,15 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-<!-- 우측 하단 보러가기 버튼 -->
-<div class="upload-archive-button">
-  <a href="{{ url_for('archive') }}" class="upload-archive-btn" title="아카이브 보러가기">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-      <line x1="9" y1="3" x2="9" y2="21"></line>
-    </svg>
-  </a>
-</div>
-
 <div class="upload-container" 
      data-today-count="{{ today_count }}"
      data-max-files="{{ max_files }}"
@@ -738,7 +728,7 @@ async function handleUpload() {
 
 // 드래그 앤 드롭 및 파일 선택 영역 클릭
 document.addEventListener('DOMContentLoaded', () => {
-  const fileUploadArea = document.getElementById('fileUploadArea');
+const fileUploadArea = document.getElementById('fileUploadArea');
   const fileInput = document.getElementById('photos');
   const placeholder = fileUploadArea?.querySelector('.file-upload-placeholder');
   
@@ -758,7 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  fileUploadArea.addEventListener('dragover', (e) => {
+fileUploadArea.addEventListener('dragover', (e) => {
   e.preventDefault();
   fileUploadArea.classList.add('dragover');
 });

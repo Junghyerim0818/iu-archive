@@ -560,7 +560,7 @@ h1.iu-title {
   height: 24px;
 }
 
-/* 공통 하단 고정 버튼 */
+/* 공통 하단 고정 버튼 (archive-upload-button, upload-archive-button은 이제 사용하지 않음) */
 .archive-upload-button,
 .upload-archive-button {
   position: fixed;
@@ -592,6 +592,7 @@ h1.iu-title {
   text-decoration: none;
   outline: none;
   -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 
 .archive-upload-btn:hover,
