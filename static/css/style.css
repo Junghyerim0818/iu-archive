@@ -828,11 +828,40 @@ h1.iu-title {
   height: 18px;
 }
 
-.archive-stats {
+/* 오른쪽 사이드바 컨테이너 (통계 + 태그 필터) */
+.archive-sidebar {
   position: fixed;
   top: 100px;
   right: 20px;
   width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 998;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.archive-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.archive-sidebar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.archive-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.archive-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.archive-stats {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -842,7 +871,7 @@ h1.iu-title {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   font-size: 14px;
-  z-index: 998;
+  flex-shrink: 0;
 }
 
 .archive-stat-item {
@@ -872,21 +901,40 @@ h1.iu-title {
   padding: 5rem 0;
 }
 
+/* 날짜별 뷰용 통계 */
+.archive-stats-list-view {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 24px;
+  margin: 2rem 0;
+  padding: 0 1rem;
+}
+
+.archive-stats-list-view .archive-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 24px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-size: 14px;
+}
+
 .gallery-tag-filter-sidebar {
-  position: fixed;
-  top: 220px;
-  right: 20px;
-  width: 250px;
-  max-height: calc(100vh - 240px);
+  width: 100%;
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 16px;
-  z-index: 997;
-  z-index: 999;
   overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  flex: 1;
+  min-height: 0;
 }
 
 .gallery-tag-filter-sidebar::-webkit-scrollbar {
@@ -2594,10 +2642,16 @@ h1.iu-title {
     padding: 0 0.5rem;
   }
 
-  .archive-stats {
+  .archive-sidebar {
     position: relative;
     top: auto;
     right: auto;
+    width: 100%;
+    max-height: none;
+    margin-bottom: 1.5rem;
+  }
+
+  .archive-stats {
     width: 100%;
     margin-bottom: 1rem;
     padding: 12px;
@@ -2611,13 +2665,15 @@ h1.iu-title {
   }
 
   .gallery-tag-filter-sidebar {
-    position: relative;
-    top: auto;
-    right: auto;
     width: 100%;
     max-height: 300px;
-    margin-bottom: 1.5rem;
     padding: 12px;
+  }
+
+  .archive-stats-list-view {
+    flex-direction: column;
+    gap: 12px;
+    margin: 1rem 0;
   }
 
   .gallery-container {
