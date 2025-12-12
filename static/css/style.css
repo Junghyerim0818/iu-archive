@@ -878,7 +878,7 @@ h1.iu-title {
 .archive-stat-item .stat-label {
   color: var(--text-gray);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 14px;
   text-align: center;
   margin: 0;
   padding: 0;
@@ -947,6 +947,7 @@ h1.iu-title {
 .tag-filter-label {
   flex: 1;
   text-align: left;
+  margin-left: 1rem;
 }
 
 .tag-filter-count {
@@ -2792,11 +2793,11 @@ h1.iu-title {
   }
 
   .archive-stat-item .stat-label {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .archive-stat-item .stat-value {
-    font-size: 11px;
+    font-size: 12px;
     padding: 0;
   }
 
