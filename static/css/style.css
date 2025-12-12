@@ -2990,14 +2990,6 @@ h1.iu-title {
     gap: 8px;
   }
 
-  .archive-stats {
-    order: 1;
-    flex: 1 1 0;
-    min-width: 0;
-    margin-bottom: 0;
-    margin-right: 8px;
-  }
-
   .tag-filter-dropdown {
     order: 3;
     flex: 0 0 calc(50% - 4px);
@@ -3059,10 +3051,14 @@ h1.iu-title {
   }
 
   .archive-stats {
+    flex: auto;
     padding: 0 16px;
     gap: 12px;
     height: 44px;
     font-size: 11px;
+    order: 1;
+    min-width: 0;
+    margin-bottom: 0;
   }
 
   .archive-stat-item .stat-label {
