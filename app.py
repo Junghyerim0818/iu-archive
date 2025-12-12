@@ -111,12 +111,11 @@ _schema_initialized = False
 
 
 def check_tables_exist():
-    """필수 테이블(User, Photo, Visitor)이 존재하는지 확인 - 실제 쿼리로 확인"""
+    """필수 테이블(User, Photo)이 존재하는지 확인 - 실제 쿼리로 확인"""
     try:
         # 간단한 쿼리로 테이블 존재 확인
         db.session.execute(text('SELECT 1 FROM "user" LIMIT 1'))
         db.session.execute(text("SELECT 1 FROM photo LIMIT 1"))
-        db.session.execute(text("SELECT 1 FROM visitor LIMIT 1"))
         db.session.rollback()  # 쿼리만 확인하고 롤백
         return True
     except Exception as exc:
@@ -232,12 +231,7 @@ class Photo(db.Model):
     user = db.relationship("User", backref="photos")
 
 
-class Visitor(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    ip_address = db.Column(db.String(45))  # IPv6 지원
-    session_id = db.Column(db.String(255))
-    visited_at = db.Column(db.DateTime, default=datetime.utcnow)
-    visited_date = db.Column(db.Date, default=date.today)
+# Visitor 모델 제거됨 - 방문자 기록 기능 비활성화
 
 
 def current_user() -> Optional[User]:
@@ -362,41 +356,6 @@ def process_file_upload_async(file_data: bytes, filename: str, relative_path: st
 
 @app.route("/")
 def home():
-    # 방문자 기록 (중복 방지: 같은 세션에서는 하루에 한 번만 기록)
-    session_id = session.get("_id", session.get("session_id"))
-    if not session_id:
-        import secrets
-        session_id = secrets.token_hex(16)
-        session["_id"] = session_id
-    
-    ip_address = request.remote_addr or request.environ.get("HTTP_X_FORWARDED_FOR", "").split(",")[0]
-    today = date.today()
-    
-    # 방문자 기록 시도 (테이블이 없을 수 있으므로 예외 처리)
-    try:
-        # 오늘 이미 방문한 세션이 아니면 기록
-        existing_visit = Visitor.query.filter_by(
-            session_id=session_id,
-            visited_date=today
-        ).first()
-        
-        if not existing_visit:
-            visitor = Visitor(
-                ip_address=ip_address,
-                session_id=session_id,
-                visited_date=today
-            )
-            db.session.add(visitor)
-            db.session.commit()
-    except Exception as exc:
-        # visitor 테이블이 없거나 다른 오류 발생 시 스키마 생성 시도
-        app.logger.warning("방문자 기록 실패, 스키마 확인: %s", exc)
-        try:
-            db.create_all()
-        except Exception:
-            pass
-        db.session.rollback()
-    
     # 랜덤 사진들을 모자이크용으로 가져오기
     import random
     all_approved = Photo.query.filter_by(status="approved").all()
@@ -417,6 +376,16 @@ def archive():
         .all()
     )
 
+    # 통계 계산
+    total_count = len(approved)
+    
+    # 신규 사진: 최근 7일 내에 승인된 사진 (created_at 기준)
+    from datetime import timedelta
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    new_count = Photo.query.filter_by(status="approved").filter(
+        Photo.created_at >= seven_days_ago
+    ).count()
+
     # 년도 > 월 > 일 계층 구조로 그룹화
     years_dict = {}
     for photo in approved:
@@ -434,7 +403,11 @@ def archive():
         years_dict[year][month][day].append(photo)
 
     return render_template(
-        "archive.html", years_dict=years_dict, user=current_user()
+        "archive.html", 
+        years_dict=years_dict, 
+        user=current_user(),
+        total_count=total_count,
+        new_count=new_count
     )
 
 
