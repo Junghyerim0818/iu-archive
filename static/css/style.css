@@ -2993,27 +2993,29 @@ h1.iu-title {
 
   .archive-stats {
     order: 1;
-    width: 100%;
-    margin-bottom: 8px;
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
   }
 
   .archive-view-toggle {
-    order: 2;
-    width: 100%;
-    margin-bottom: 8px;
+    order: 1;
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
     padding: 6px;
     gap: 4px;
     height: 44px;
   }
 
   .tag-filter-dropdown {
-    order: 3;
+    order: 2;
     flex: 1;
     min-width: 0;
   }
 
   .sort-dropdown {
-    order: 4;
+    order: 2;
     flex: 1;
     min-width: 0;
   }
