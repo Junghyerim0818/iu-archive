@@ -2249,9 +2249,9 @@ h1.iu-title {
 }
 
 .admin-photo-card.selected {
-  border-color: rgba(129, 199, 132, 0.5);
-  background: rgba(129, 199, 132, 0.1);
-  box-shadow: 0 0 0 2px rgba(129, 199, 132, 0.3);
+  border-color: rgba(129, 199, 132, 0.4);
+  background: rgba(129, 199, 132, 0.05);
+  box-shadow: 0 0 0 2px rgba(129, 199, 132, 0.2);
 }
 
 .photo-checkbox-wrapper {
@@ -2323,14 +2323,17 @@ h1.iu-title {
 }
 
 .photo-checkbox:checked + .photo-checkbox-label::after {
-  content: '✓';
+  content: '';
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: white;
-  font-size: 16px;
-  font-weight: bold;
+  width: 14px;
+  height: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 /* 일괄 처리 버튼 */
@@ -2483,24 +2486,24 @@ h1.iu-title {
 }
 
 .approve-btn {
-  background: rgba(129, 199, 132, 0.2);
-  color: #81c784;
-  border: 1px solid rgba(129, 199, 132, 0.3);
+  background: white;
+  color: #333;
+  border: none;
 }
 
 .approve-btn:hover {
-  background: rgba(129, 199, 132, 0.3);
+  background: #f5f5f5;
   transform: translateY(-2px);
 }
 
 .reject-btn {
-  background: rgba(229, 115, 115, 0.2);
-  color: #e57373;
-  border: 1px solid rgba(229, 115, 115, 0.3);
+  background: #000;
+  color: white;
+  border: 1px solid white;
 }
 
 .reject-btn:hover {
-  background: rgba(229, 115, 115, 0.3);
+  background: #1a1a1a;
   transform: translateY(-2px);
 }
 

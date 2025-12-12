@@ -72,10 +72,10 @@
                 {% for photo in user_group.photos %}
                   {% set photo_url = photo.file_url_cache if photo.file_url_cache else file_url(photo) %}
                   {% set photo_id = photo.id %}
-                  <div class="admin-photo-card" data-photo-id="{{ photo_id }}" onclick="togglePhotoSelection(this.dataset.photoId)">
-                    <div class="photo-checkbox-wrapper">
+                  <div class="admin-photo-card" data-photo-id="{{ photo_id }}" onclick="togglePhotoSelection({{ photo_id }})">
+                    <div class="photo-checkbox-wrapper" onclick="event.stopPropagation()">
                       <input type="checkbox" class="photo-checkbox" id="photo_{{ photo_id }}" value="{{ photo_id }}" onchange="updateSelection()">
-                      <label for="photo_{{ photo_id }}" class="photo-checkbox-label"></label>
+                      <label for="photo_{{ photo_id }}" class="photo-checkbox-label" onclick="event.stopPropagation()"></label>
                     </div>
                     <button class="photo-zoom-btn" onclick="event.stopPropagation(); openImageModal('{{ photo_url }}', '{{ photo.event_name }}')" title="확대 보기">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -101,7 +101,7 @@
                         <span class="info-value">{{ photo.tags }}</span>
                       </div>
                       {% endif %}
-                      <form method="post" class="admin-photo-actions">
+                      <form method="post" class="admin-photo-actions" onclick="event.stopPropagation()">
                         <input type="hidden" name="photo_id" value="{{ photo.id }}">
                         <button name="action" value="approve" type="submit" class="action-btn approve-btn">
                           승인
@@ -137,8 +137,7 @@ function toggleUserSection(header) {
 }
 
 // 사진 선택 토글
-function togglePhotoSelection(element) {
-  const photoId = element.dataset.photoId || element;
+function togglePhotoSelection(photoId) {
   const checkbox = document.getElementById('photo_' + photoId);
   if (checkbox) {
     checkbox.checked = !checkbox.checked;
