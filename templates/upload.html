@@ -466,10 +466,17 @@ async function handleUpload() {
         })
       });
       
-      const presignedResult = await presignedResponse.json();
+      let presignedResult;
+      try {
+        presignedResult = await presignedResponse.json();
+      } catch (e) {
+        const text = await presignedResponse.text();
+        throw new Error(`Presigned URL 생성 실패: ${text || presignedResponse.statusText} (HTTP ${presignedResponse.status})`);
+      }
       
       if (!presignedResponse.ok || !presignedResult.success) {
-        throw new Error(presignedResult.error || 'Presigned URL 생성 실패');
+        const errorMsg = presignedResult.error || 'Presigned URL 생성 실패';
+        throw new Error(errorMsg);
       }
       
       // 2. 각 파일을 GCS에 직접 업로드
@@ -484,16 +491,24 @@ async function handleUpload() {
         const file = selectedFiles[i];
         
         // GCS에 직접 업로드
-        const uploadResponse = await fetch(presignedInfo.url, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': presignedInfo.content_type
-          },
-          body: file
-        });
-        
-        if (!uploadResponse.ok) {
-          throw new Error(`파일 업로드 실패: ${file.name}`);
+        try {
+          const uploadResponse = await fetch(presignedInfo.url, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': presignedInfo.content_type
+            },
+            body: file
+          });
+          
+          if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text().catch(() => uploadResponse.statusText);
+            throw new Error(`파일 업로드 실패: ${file.name} (${errorText || uploadResponse.statusText})`);
+          }
+        } catch (e) {
+          if (e.message.includes('파일 업로드 실패')) {
+            throw e;
+          }
+          throw new Error(`파일 업로드 중 오류 발생: ${file.name} - ${e.message}`);
         }
         
         uploadedPaths.push({
@@ -547,19 +562,8 @@ async function handleUpload() {
         result = { success: response.ok, error: text || `HTTP ${response.status}` };
       }
     }
-
-    const contentType = response.headers.get('content-type');
-    let result = {};
-
-    // 응답이 JSON인지 확인 후 파싱
-    if (contentType && contentType.includes('application/json')) {
-      result = await response.json();
-    } else {
-      // 텍스트 응답 (예: Forbidden 등)
-      const text = await response.text();
-      result = { success: response.ok, error: text || `HTTP ${response.status}` };
-    }
     
+    // result는 이미 위에서 파싱됨
     if (response.ok && result.success) {
       uploadInProgress = false;
       window.removeEventListener('beforeunload', beforeUnloadHandler);
@@ -698,11 +702,29 @@ async function handleUpload() {
   }
 }
 
-// 드래그 앤 드롭
-const fileUploadArea = document.getElementById('fileUploadArea');
-const fileInput = document.getElementById('photos');
+// 드래그 앤 드롭 및 파일 선택 영역 클릭
+document.addEventListener('DOMContentLoaded', () => {
+  const fileUploadArea = document.getElementById('fileUploadArea');
+  const fileInput = document.getElementById('photos');
+  const placeholder = fileUploadArea?.querySelector('.file-upload-placeholder');
+  
+  if (!fileUploadArea || !fileInput) {
+    console.error('파일 업로드 요소를 찾을 수 없습니다.');
+    return;
+  }
 
-fileUploadArea.addEventListener('dragover', (e) => {
+  // 파일 업로드 영역 클릭 시 파일 선택 다이얼로그 열기
+  if (placeholder) {
+    placeholder.style.cursor = 'pointer';
+    placeholder.addEventListener('click', (e) => {
+      // input이 클릭된 경우는 제외
+      if (e.target !== fileInput) {
+        fileInput.click();
+      }
+    });
+  }
+
+  fileUploadArea.addEventListener('dragover', (e) => {
   e.preventDefault();
   fileUploadArea.classList.add('dragover');
 });
@@ -796,6 +818,7 @@ fileUploadArea.addEventListener('drop', (e) => {
   fileInput.files = dataTransfer.files;
   
   displayFileList();
+  });
 });
 
 // 날짜 입력 필드 영역 전체 클릭 가능하게 만들기
