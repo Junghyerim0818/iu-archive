@@ -698,13 +698,13 @@ def api_upload_presigned():
         blob.content_type = content_type
         
         # Presigned URL 생성 (업로드용, 1시간 유효)
+        # 파일 크기 제한은 서버 측에서 이미 검증하므로 헤더에 포함하지 않음
         from datetime import timedelta
         url = blob.generate_signed_url(
             version="v4",
             expiration=timedelta(hours=1),
             method="PUT",
-            content_type=content_type,
-            headers={"x-goog-content-length-range": f"0,{file_size}"}
+            content_type=content_type
         )
         
         presigned_urls.append({
