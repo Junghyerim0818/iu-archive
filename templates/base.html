@@ -112,14 +112,7 @@
       </svg>
     </a>
     {% elif request.endpoint in ['upload', 'admin_pending'] %}
-    <!-- 업로드/관리자 승인 페이지: 다운로드, 아카이브 보러가기 버튼 -->
-    <button class="download-mode-button" id="downloadModeButton" onclick="enterDownloadMode()" title="다운로드 모드">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="7 10 12 15 17 10"></polyline>
-        <line x1="12" y1="15" x2="12" y2="3"></line>
-      </svg>
-    </button>
+    <!-- 업로드/관리자 승인 페이지: 아카이브 보러가기 버튼 -->
     <a href="{{ url_for('archive') }}" class="upload-archive-btn" title="아카이브 보러가기">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -127,12 +120,14 @@
       </svg>
     </a>
     {% endif %}
+    {% if request.endpoint != 'home' %}
     <a href="{{ url_for('home') }}" class="home-button" id="homeButton" title="홈으로">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
         <polyline points="9 22 9 12 15 12 15 22"></polyline>
       </svg>
     </a>
+    {% endif %}
     {% if user %}
     <button class="profile-button" id="profileButton" onclick="toggleProfileMenu()">
       {% if user.picture %}

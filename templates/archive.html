@@ -790,21 +790,66 @@ function handleSwipe() {
   }
 }
 
+// 다운로드 모드 활성화 함수 (버튼 클릭 시)
+function enterDownloadMode() {
+  selectionMode = true;
+  selectedPhotoIds.clear();
+  
+  // 다운로드 모드 버튼 활성화 표시
+  const downloadBtn = document.getElementById('downloadModeButton');
+  if (downloadBtn) {
+    downloadBtn.classList.add('active');
+  }
+  
+  // 모든 사진에 체크마크 표시 가능하도록 UI 업데이트
+  document.querySelectorAll('.gallery-photo-item').forEach(item => {
+    if (!item.querySelector('.photo-checkmark')) {
+      const checkmark = document.createElement('div');
+      checkmark.className = 'photo-checkmark';
+      checkmark.innerHTML = '✓';
+      checkmark.style.display = 'none'; // 선택되지 않은 상태에서는 숨김
+      item.appendChild(checkmark);
+    }
+  });
+  
+  // 다운로드 바 표시
+  const downloadBar = document.getElementById('download-selection-bar');
+  if (downloadBar) {
+    downloadBar.style.display = 'flex';
+  }
+  
+  updateSelectionCount();
+}
+
 // 선택 모드 관련 함수들
 function enterSelectionMode(photoId, photoItem) {
   selectionMode = true;
   selectedPhotoIds.clear();
   selectedPhotoIds.add(photoId);
   
+  // 다운로드 모드 버튼 활성화 표시
+  const downloadBtn = document.getElementById('downloadModeButton');
+  if (downloadBtn) {
+    downloadBtn.classList.add('active');
+  }
+  
   // UI 업데이트
   document.querySelectorAll('.gallery-photo-item').forEach(item => {
     if (selectedPhotoIds.has(item.dataset.photoId)) {
       item.classList.add('selected');
-      if (!item.querySelector('.photo-checkmark')) {
-        const checkmark = document.createElement('div');
-        checkmark.className = 'photo-checkmark';
-        checkmark.innerHTML = '✓';
-        item.appendChild(checkmark);
+      const checkmark = item.querySelector('.photo-checkmark');
+      if (checkmark) {
+        checkmark.style.display = 'flex';
+      } else {
+        const newCheckmark = document.createElement('div');
+        newCheckmark.className = 'photo-checkmark';
+        newCheckmark.innerHTML = '✓';
+        item.appendChild(newCheckmark);
+      }
+    } else {
+      const checkmark = item.querySelector('.photo-checkmark');
+      if (checkmark) {
+        checkmark.style.display = 'none';
       }
     }
   });
@@ -825,15 +870,20 @@ function togglePhotoSelection(photoId, photoItem) {
     selectedPhotoIds.delete(photoId);
     photoItem.classList.remove('selected');
     const checkmark = photoItem.querySelector('.photo-checkmark');
-    if (checkmark) checkmark.remove();
+    if (checkmark) {
+      checkmark.style.display = 'none';
+    }
   } else {
     selectedPhotoIds.add(photoId);
     photoItem.classList.add('selected');
-    if (!photoItem.querySelector('.photo-checkmark')) {
-      const checkmark = document.createElement('div');
-      checkmark.className = 'photo-checkmark';
-      checkmark.innerHTML = '✓';
-      photoItem.appendChild(checkmark);
+    const checkmark = photoItem.querySelector('.photo-checkmark');
+    if (checkmark) {
+      checkmark.style.display = 'flex';
+    } else {
+      const newCheckmark = document.createElement('div');
+      newCheckmark.className = 'photo-checkmark';
+      newCheckmark.innerHTML = '✓';
+      photoItem.appendChild(newCheckmark);
     }
   }
   
