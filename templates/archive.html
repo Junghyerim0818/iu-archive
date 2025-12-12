@@ -859,6 +859,12 @@ function exitSelectionMode() {
   selectionMode = false;
   selectedPhotoIds.clear();
   
+  // 다운로드 모드 버튼 비활성화 표시
+  const downloadBtn = document.getElementById('downloadModeButton');
+  if (downloadBtn) {
+    downloadBtn.classList.remove('active');
+  }
+  
   // UI 업데이트
   document.querySelectorAll('.gallery-photo-item').forEach(item => {
     item.classList.remove('selected');

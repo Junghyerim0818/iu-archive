@@ -95,6 +95,15 @@
 
   <!-- 우측 하단 프로필/로그인 버튼 -->
   <div class="profile-button-container">
+    {% if request.endpoint == 'archive' %}
+    <button class="download-mode-button" id="downloadModeButton" onclick="enterDownloadMode()" title="다운로드 모드">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+    </button>
+    {% endif %}
     <a href="{{ url_for('home') }}" class="home-button" id="homeButton" title="홈으로">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
