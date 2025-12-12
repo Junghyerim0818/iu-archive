@@ -865,16 +865,23 @@ h1.iu-title {
 .archive-stat-item {
   display: flex;
   flex-direction: row;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  text-align: center;
 }
 
 .archive-stat-item .stat-label {
   color: var(--text-gray);
   font-weight: 500;
   font-size: 12px;
+  text-align: center;
+  margin: 0;
+  padding: 0;
 }
 
 .archive-stat-item .stat-value {
@@ -882,6 +889,9 @@ h1.iu-title {
   font-weight: 600;
   font-size: 12px;
   line-height: 1.2;
+  text-align: center;
+  margin: 0;
+  padding: 0;
 }
 
 
