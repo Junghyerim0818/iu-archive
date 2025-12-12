@@ -383,16 +383,57 @@
       window.closeAlert = closeAlert;
     })();
     
-    // 전역으로 노출
-    window.showAlert = showAlert;
-    window.closeAlert = closeAlert;
-    
     // showToast를 showAlert로 리다이렉트 (하위 호환성)
     window.showToast = function(message, options = {}) {
       const title = options.title || '알림';
       const type = options.type || 'info';
-      showAlert(message, title, type);
+      if (window.showAlert) {
+        window.showAlert(message, title, type);
+      }
     };
+    
+    // Fetch API interceptor - 세션 만료 시 홈으로 리디렉션
+    (function() {
+      const originalFetch = window.fetch;
+      
+      window.fetch = function(...args) {
+        return originalFetch.apply(this, args)
+          .then(response => {
+            // 401 (Unauthorized) 또는 403 (Forbidden) 응답 체크
+            if (response.status === 401 || response.status === 403) {
+              // JSON 응답인지 확인
+              const contentType = response.headers.get('content-type');
+              if (contentType && contentType.includes('application/json')) {
+                return response.clone().json().then(data => {
+                  // 리디렉션 URL이 있으면 사용, 없으면 홈으로
+                  const redirectUrl = data.redirect || '/';
+                  if (window.showAlert && data.error) {
+                    window.showAlert(data.error, '세션 만료', 'error');
+                  }
+                  // 약간의 지연 후 리디렉션 (사용자가 메시지를 볼 수 있도록)
+                  setTimeout(() => {
+                    window.location.href = redirectUrl;
+                  }, 1000);
+                  return Promise.reject(new Error('Session expired'));
+                }).catch(() => {
+                  // JSON 파싱 실패 시 바로 리디렉션
+                  setTimeout(() => {
+                    window.location.href = '/';
+                  }, 500);
+                  return Promise.reject(new Error('Session expired'));
+                });
+              } else {
+                // JSON이 아니면 바로 리디렉션
+                setTimeout(() => {
+                  window.location.href = '/';
+                }, 500);
+                return Promise.reject(new Error('Session expired'));
+              }
+            }
+            return response;
+          });
+      };
+    })();
 
     // 공통 아코디언 토글 함수
     function toggleAccordion(header, sectionSelector, contentSelector, iconSelector) {

@@ -245,7 +245,11 @@ def login_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         if not current_user():
-            flash("로그인이 필요합니다.", "warning")
+            # AJAX 요청인 경우 JSON 응답 반환
+            if request.is_json or request.path.startswith("/api/") or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"success": False, "error": "세션이 만료되었습니다.", "redirect": url_for("home")}), 401
+            # 일반 요청인 경우 홈으로 리디렉션
+            flash("세션이 만료되었습니다. 다시 로그인해주세요.", "warning")
             return redirect(url_for("home"))
         return fn(*args, **kwargs)
 
@@ -256,7 +260,17 @@ def admin_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         user = current_user()
-        if not user or not user.is_admin:
+        if not user:
+            # AJAX 요청인 경우 JSON 응답 반환
+            if request.is_json or request.path.startswith("/api/") or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"success": False, "error": "세션이 만료되었습니다.", "redirect": url_for("home")}), 401
+            # 일반 요청인 경우 홈으로 리디렉션
+            flash("세션이 만료되었습니다. 다시 로그인해주세요.", "warning")
+            return redirect(url_for("home"))
+        if not user.is_admin:
+            # AJAX 요청인 경우 JSON 응답 반환
+            if request.is_json or request.path.startswith("/api/") or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"success": False, "error": "관리자만 접근 가능합니다.", "redirect": url_for("home")}), 403
             flash("관리자만 접근 가능합니다.", "error")
             return redirect(url_for("home"))
         return fn(*args, **kwargs)

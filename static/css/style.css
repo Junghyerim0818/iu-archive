@@ -2196,10 +2196,14 @@ h1.iu-title {
 
 .profile-photos-container {
   margin-top: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
 }
 
 .profile-date-section.expanded .profile-photos-container {
   margin-top: 16px;
+  max-height: 5000px;
 }
 
 .profile-date-section .photo-list {
@@ -2696,7 +2700,7 @@ h1.iu-title {
   }
 
   .view-toggle-btn span {
-    display: inline;
+    display: none;
   }
 
   .gallery-photo-grid {
@@ -2716,14 +2720,10 @@ h1.iu-title {
 
 
   .archive-stats {
-    padding: 0 10px;
+    padding: 0 16px;
     gap: 12px;
     height: 44px;
     font-size: 11px;
-  }
-
-  .archive-stat-item {
-    gap: 1px;
   }
 
   .archive-stat-item .stat-label {
@@ -2732,6 +2732,7 @@ h1.iu-title {
 
   .archive-stat-item .stat-value {
     font-size: 11px;
+    padding: 0;
   }
 
   .gallery-tag-filter-sidebar {
