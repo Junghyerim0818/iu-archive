@@ -1835,15 +1835,21 @@ h1.iu-title {
   border-radius: 50%;
   width: 48px;
   height: 48px;
-  font-size: 32px;
-  font-weight: 300;
   cursor: pointer;
   display: none;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  z-index: 10;
+  z-index: 2001;
   user-select: none;
+  padding: 0;
+}
+
+.image-modal__nav svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  display: block;
 }
 
 .image-modal__nav:hover {

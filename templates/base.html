@@ -57,10 +57,18 @@
   <!-- 이미지 모달 -->
   <div id="image-modal" class="image-modal">
     <div class="image-modal__backdrop" onclick="closeImageModal()"></div>
+    <button type="button" class="image-modal__nav image-modal__nav--prev" id="imageModalPrev" onclick="navigateImage(-1)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+    </button>
+    <button type="button" class="image-modal__nav image-modal__nav--next" id="imageModalNext" onclick="navigateImage(1)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
     <div class="image-modal__content">
       <button type="button" class="image-modal__close" onclick="closeImageModal()">×</button>
-      <button type="button" class="image-modal__nav image-modal__nav--prev" id="imageModalPrev" onclick="navigateImage(-1)">‹</button>
-      <button type="button" class="image-modal__nav image-modal__nav--next" id="imageModalNext" onclick="navigateImage(1)">›</button>
       <img id="image-modal-img" src="" alt="">
       <div class="image-modal__info">
         <span id="image-modal-counter"></span>
