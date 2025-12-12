@@ -59,8 +59,29 @@
     <div class="image-modal__backdrop" onclick="closeImageModal()"></div>
     <div class="image-modal__content">
       <button type="button" class="image-modal__close" onclick="closeImageModal()">×</button>
+      <button type="button" class="image-modal__nav image-modal__nav--prev" id="imageModalPrev" onclick="navigateImage(-1)">‹</button>
+      <button type="button" class="image-modal__nav image-modal__nav--next" id="imageModalNext" onclick="navigateImage(1)">›</button>
       <img id="image-modal-img" src="" alt="">
+      <div class="image-modal__info">
+        <span id="image-modal-counter"></span>
+      </div>
     </div>
+  </div>
+  
+  <!-- 다운로드 버튼 (선택 모드용) -->
+  <div id="download-selection-bar" class="download-selection-bar" style="display: none;">
+    <div class="download-selection-info">
+      <span id="selected-count">0개 선택됨</span>
+    </div>
+    <button class="download-selection-btn" onclick="downloadSelectedPhotos()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      다운로드
+    </button>
+    <button class="download-selection-close" onclick="exitSelectionMode()">×</button>
   </div>
 
 
@@ -239,8 +260,8 @@
       });
     });
 
-    // 이미지 모달
-    function openImageModal(src, alt) {
+    // 이미지 모달 (전역 함수로 유지, archive.html에서 확장)
+    function openImageModal(src, alt, index, photoList) {
       const modal = document.getElementById('image-modal');
       const modalImg = document.getElementById('image-modal-img');
       if (!modal || !modalImg) return;
@@ -248,6 +269,11 @@
       modalImg.alt = alt || '';
       modal.classList.add('show');
       document.body.style.overflow = 'hidden';
+      
+      // 전역 변수 설정 (archive.html에서 사용)
+      if (typeof window.setImageModalData === 'function') {
+        window.setImageModalData(index, photoList);
+      }
     }
 
     function closeImageModal() {
@@ -256,6 +282,13 @@
       if (modal) modal.classList.remove('show');
       if (modalImg) modalImg.src = '';
       document.body.style.overflow = '';
+    }
+    
+    // 이미지 네비게이션 (archive.html에서 구현)
+    function navigateImage(direction) {
+      if (typeof window.navigateImageModal === 'function') {
+        window.navigateImageModal(direction);
+      }
     }
 
     document.addEventListener('DOMContentLoaded', () => {

@@ -44,6 +44,36 @@
         </div>
       </div>
 
+      <!-- 정렬 드롭다운 -->
+      <div class="sort-dropdown" id="sortFilter">
+        <button class="sort-dropdown-btn" id="sortFilterBtn" onclick="toggleSortDropdown()">
+          <span class="sort-label" id="sortLabel">정렬</span>
+          <svg class="sort-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+        <div class="sort-dropdown-menu" id="sortFilterDropdown">
+          <button class="sort-option" data-sort="random" onclick="changeSort('random')">
+            <span>랜덤</span>
+            <svg class="sort-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </button>
+          <button class="sort-option" data-sort="date" onclick="changeSort('date')">
+            <span>날짜순</span>
+            <svg class="sort-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </button>
+          <button class="sort-option" data-sort="downloads" onclick="changeSort('downloads')">
+            <span>다운로드순</span>
+            <svg class="sort-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+
     <!-- 뷰 전환 버튼 -->
     <div class="archive-view-toggle">
       <button class="view-toggle-btn active" data-view="gallery" id="galleryViewBtn">
@@ -198,6 +228,17 @@ function toggleDay(year, month, day) {
 // 날짜별로 그룹화된 사진 저장
 let photosByDate = {};
 let selectedTags = [];
+let currentSort = 'random'; // 정렬 방식: random, date, downloads
+
+// 이미지 모달용 전역 변수
+let allPhotosList = []; // 모든 사진 목록 (순서대로)
+let currentImageIndex = -1; // 현재 이미지 인덱스
+
+// 선택 모드 관련
+let selectionMode = false;
+let selectedPhotoIds = new Set(); // 선택된 사진 ID들
+let longPressTimer = null;
+let longPressTarget = null;
 
 // 날짜 포맷팅 함수
 function formatDate(dateString) {
@@ -227,18 +268,92 @@ function toggleTagDropdown() {
   const arrow = tagFilterBtn.querySelector('.tag-filter-arrow');
   if (tagFilterDropdown.classList.contains('show')) {
     arrow.style.transform = 'rotate(180deg)';
+    // 정렬 드롭다운 닫기
+    const sortDropdown = document.getElementById('sortFilterDropdown');
+    if (sortDropdown) sortDropdown.classList.remove('show');
+    const sortArrow = document.getElementById('sortFilterBtn')?.querySelector('.sort-arrow');
+    if (sortArrow) sortArrow.style.transform = 'rotate(0deg)';
   } else {
     arrow.style.transform = 'rotate(0deg)';
   }
 }
 
+// 정렬 드롭다운 토글
+function toggleSortDropdown() {
+  const sortDropdown = document.getElementById('sortFilterDropdown');
+  const sortBtn = document.getElementById('sortFilterBtn');
+  const arrow = sortBtn?.querySelector('.sort-arrow');
+  
+  if (sortDropdown) {
+    sortDropdown.classList.toggle('show');
+    if (sortDropdown.classList.contains('show')) {
+      if (arrow) arrow.style.transform = 'rotate(180deg)';
+      // 태그 드롭다운 닫기
+      tagFilterDropdown.classList.remove('show');
+      const tagArrow = tagFilterBtn.querySelector('.tag-filter-arrow');
+      if (tagArrow) tagArrow.style.transform = 'rotate(0deg)';
+    } else {
+      if (arrow) arrow.style.transform = 'rotate(0deg)';
+    }
+  }
+}
+
+// 정렬 변경
+function changeSort(sortType) {
+  currentSort = sortType;
+  
+  // 정렬 옵션 UI 업데이트
+  document.querySelectorAll('.sort-option').forEach(option => {
+    const check = option.querySelector('.sort-check');
+    if (option.dataset.sort === sortType) {
+      option.classList.add('active');
+      if (check) check.style.display = 'block';
+    } else {
+      option.classList.remove('active');
+      if (check) check.style.display = 'none';
+    }
+  });
+  
+  // 정렬 라벨 업데이트
+  const sortLabels = {
+    'random': '랜덤',
+    'date': '날짜순',
+    'downloads': '다운로드순'
+  };
+  const sortLabel = document.getElementById('sortLabel');
+  if (sortLabel) {
+    sortLabel.textContent = sortLabels[sortType] || '정렬';
+  }
+  
+  // 정렬 드롭다운 닫기
+  const sortDropdown = document.getElementById('sortFilterDropdown');
+  if (sortDropdown) sortDropdown.classList.remove('show');
+  const sortArrow = document.getElementById('sortFilterBtn')?.querySelector('.sort-arrow');
+  if (sortArrow) sortArrow.style.transform = 'rotate(0deg)';
+  
+  // 갤러리 초기화 및 재로드
+  photosByDate = {};
+  currentPage = 1;
+  hasMore = true;
+  loadGalleryPhotos();
+}
+
 // 드롭다운 외부 클릭 시 닫기
 document.addEventListener('click', (e) => {
   const tagFilter = document.getElementById('tagFilter');
+  const sortFilter = document.getElementById('sortFilter');
+  
   if (tagFilter && !tagFilter.contains(e.target)) {
     tagFilterDropdown.classList.remove('show');
     const arrow = tagFilterBtn.querySelector('.tag-filter-arrow');
-    arrow.style.transform = 'rotate(0deg)';
+    if (arrow) arrow.style.transform = 'rotate(0deg)';
+  }
+  
+  if (sortFilter && !sortFilter.contains(e.target)) {
+    const sortDropdown = document.getElementById('sortFilterDropdown');
+    if (sortDropdown) sortDropdown.classList.remove('show');
+    const sortArrow = document.getElementById('sortFilterBtn')?.querySelector('.sort-arrow');
+    if (sortArrow) sortArrow.style.transform = 'rotate(0deg)';
   }
 });
 
@@ -319,7 +434,7 @@ function loadGalleryPhotos() {
   loadingIndicator.style.display = 'block';
   galleryEmptyState.style.display = 'none';
   
-  let url = `/api/archive/photos?page=${currentPage}&per_page=50`;
+  let url = `/api/archive/photos?page=${currentPage}&per_page=50&sort=${currentSort}`;
   if (selectedTags.length > 0) {
     // 여러 태그를 쉼표로 구분하여 전달
     const tagsParam = selectedTags.map(tag => encodeURIComponent(tag)).join(',');
@@ -376,6 +491,9 @@ function loadGalleryPhotos() {
 function renderGallery() {
   galleryContainer.innerHTML = '';
   
+  // 모든 사진을 순서대로 저장 (이미지 모달 네비게이션용)
+  allPhotosList = [];
+  
   // 날짜별로 정렬 (최신순)
   const sortedDates = Object.keys(photosByDate).sort((a, b) => {
     if (a === 'no-date') return 1;
@@ -400,15 +518,94 @@ function renderGallery() {
     const photoGrid = document.createElement('div');
     photoGrid.className = 'gallery-photo-grid';
     
-    photos.forEach(photo => {
+    photos.forEach((photo, photoIndex) => {
+      // 전체 사진 목록에 추가
+      const globalIndex = allPhotosList.length;
+      allPhotosList.push(photo);
+      
       const photoItem = document.createElement('div');
       photoItem.className = 'gallery-photo-item';
-      photoItem.innerHTML = `
-        <img src="${photo.url}" alt="${photo.event_name}" loading="lazy">
-      `;
-      photoItem.addEventListener('click', () => {
-        openImageModal(photo.url, photo.event_name);
+      photoItem.dataset.photoId = photo.id;
+      photoItem.dataset.photoIndex = globalIndex;
+      
+      // 선택 상태 확인
+      if (selectedPhotoIds.has(photo.id)) {
+        photoItem.classList.add('selected');
+      }
+      
+      const img = document.createElement('img');
+      img.src = photo.url;
+      img.alt = photo.event_name || '';
+      img.loading = 'lazy';
+      photoItem.appendChild(img);
+      
+      // 선택 표시 (체크박스)
+      if (selectionMode) {
+        const checkmark = document.createElement('div');
+        checkmark.className = 'photo-checkmark';
+        checkmark.innerHTML = '✓';
+        photoItem.appendChild(checkmark);
+      }
+      
+      // 클릭 이벤트
+      photoItem.addEventListener('click', (e) => {
+        if (selectionMode) {
+          togglePhotoSelection(photo.id, photoItem);
+        } else {
+          openImageModal(photo.url, photo.event_name || '', globalIndex, allPhotosList);
+        }
       });
+      
+      // 꾹 누르기 (long press) 이벤트
+      let pressTimer = null;
+      photoItem.addEventListener('mousedown', (e) => {
+        if (!selectionMode) {
+          pressTimer = setTimeout(() => {
+            enterSelectionMode(photo.id, photoItem);
+            pressTimer = null;
+          }, 500); // 500ms
+        }
+      });
+      
+      photoItem.addEventListener('mouseup', () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      });
+      
+      photoItem.addEventListener('mouseleave', () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      });
+      
+      // 터치 이벤트 (모바일)
+      photoItem.addEventListener('touchstart', (e) => {
+        if (!selectionMode) {
+          pressTimer = setTimeout(() => {
+            enterSelectionMode(photo.id, photoItem);
+            pressTimer = null;
+            e.preventDefault();
+          }, 500);
+        }
+      });
+      
+      photoItem.addEventListener('touchend', (e) => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      });
+      
+      photoItem.addEventListener('touchcancel', () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      });
+      
       photoGrid.appendChild(photoItem);
     });
     
@@ -438,10 +635,232 @@ function handleScroll() {
 
 window.addEventListener('scroll', handleScroll);
 
+// 이미지 모달 네비게이션 함수들
+window.setImageModalData = function(index, photoList) {
+  currentImageIndex = index;
+  updateImageModalCounter();
+  updateImageModalNav();
+};
+
+window.navigateImageModal = function(direction) {
+  if (allPhotosList.length === 0) return;
+  
+  currentImageIndex += direction;
+  
+  if (currentImageIndex < 0) {
+    currentImageIndex = allPhotosList.length - 1;
+  } else if (currentImageIndex >= allPhotosList.length) {
+    currentImageIndex = 0;
+  }
+  
+  const photo = allPhotosList[currentImageIndex];
+  const modalImg = document.getElementById('image-modal-img');
+  if (modalImg && photo) {
+    modalImg.src = photo.url;
+    modalImg.alt = photo.event_name || '';
+    updateImageModalCounter();
+    updateImageModalNav();
+  }
+};
+
+function updateImageModalCounter() {
+  const counter = document.getElementById('image-modal-counter');
+  if (counter && allPhotosList.length > 0) {
+    counter.textContent = `${currentImageIndex + 1} / ${allPhotosList.length}`;
+  }
+}
+
+function updateImageModalNav() {
+  const prevBtn = document.getElementById('imageModalPrev');
+  const nextBtn = document.getElementById('imageModalNext');
+  
+  if (prevBtn) prevBtn.style.display = allPhotosList.length > 1 ? 'flex' : 'none';
+  if (nextBtn) nextBtn.style.display = allPhotosList.length > 1 ? 'flex' : 'none';
+}
+
+// 키보드 네비게이션
+document.addEventListener('keydown', (e) => {
+  const modal = document.getElementById('image-modal');
+  if (modal && modal.classList.contains('show')) {
+    if (e.key === 'ArrowLeft') {
+      window.navigateImageModal(-1);
+      e.preventDefault();
+    } else if (e.key === 'ArrowRight') {
+      window.navigateImageModal(1);
+      e.preventDefault();
+    } else if (e.key === 'Escape') {
+      closeImageModal();
+    }
+  }
+});
+
+// 이미지 모달 터치 스와이프 지원
+let touchStartX = 0;
+let touchEndX = 0;
+
+document.addEventListener('touchstart', (e) => {
+  const modal = document.getElementById('image-modal');
+  if (modal && modal.classList.contains('show')) {
+    touchStartX = e.changedTouches[0].screenX;
+  }
+}, { passive: true });
+
+document.addEventListener('touchend', (e) => {
+  const modal = document.getElementById('image-modal');
+  if (modal && modal.classList.contains('show')) {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+  }
+}, { passive: true });
+
+function handleSwipe() {
+  const swipeThreshold = 50;
+  const diff = touchStartX - touchEndX;
+  
+  if (Math.abs(diff) > swipeThreshold) {
+    if (diff > 0) {
+      // 왼쪽으로 스와이프 (다음 이미지)
+      window.navigateImageModal(1);
+    } else {
+      // 오른쪽으로 스와이프 (이전 이미지)
+      window.navigateImageModal(-1);
+    }
+  }
+}
+
+// 선택 모드 관련 함수들
+function enterSelectionMode(photoId, photoItem) {
+  selectionMode = true;
+  selectedPhotoIds.clear();
+  selectedPhotoIds.add(photoId);
+  
+  // UI 업데이트
+  document.querySelectorAll('.gallery-photo-item').forEach(item => {
+    if (selectedPhotoIds.has(item.dataset.photoId)) {
+      item.classList.add('selected');
+      if (!item.querySelector('.photo-checkmark')) {
+        const checkmark = document.createElement('div');
+        checkmark.className = 'photo-checkmark';
+        checkmark.innerHTML = '✓';
+        item.appendChild(checkmark);
+      }
+    }
+  });
+  
+  // 다운로드 바 표시
+  const downloadBar = document.getElementById('download-selection-bar');
+  if (downloadBar) {
+    downloadBar.style.display = 'flex';
+  }
+  
+  updateSelectionCount();
+}
+
+function togglePhotoSelection(photoId, photoItem) {
+  if (!selectionMode) return;
+  
+  if (selectedPhotoIds.has(photoId)) {
+    selectedPhotoIds.delete(photoId);
+    photoItem.classList.remove('selected');
+    const checkmark = photoItem.querySelector('.photo-checkmark');
+    if (checkmark) checkmark.remove();
+  } else {
+    selectedPhotoIds.add(photoId);
+    photoItem.classList.add('selected');
+    if (!photoItem.querySelector('.photo-checkmark')) {
+      const checkmark = document.createElement('div');
+      checkmark.className = 'photo-checkmark';
+      checkmark.innerHTML = '✓';
+      photoItem.appendChild(checkmark);
+    }
+  }
+  
+  updateSelectionCount();
+  
+  // 선택된 항목이 없으면 선택 모드 종료
+  if (selectedPhotoIds.size === 0) {
+    exitSelectionMode();
+  }
+}
+
+function exitSelectionMode() {
+  selectionMode = false;
+  selectedPhotoIds.clear();
+  
+  // UI 업데이트
+  document.querySelectorAll('.gallery-photo-item').forEach(item => {
+    item.classList.remove('selected');
+    const checkmark = item.querySelector('.photo-checkmark');
+    if (checkmark) checkmark.remove();
+  });
+  
+  // 다운로드 바 숨기기
+  const downloadBar = document.getElementById('download-selection-bar');
+  if (downloadBar) {
+    downloadBar.style.display = 'none';
+  }
+}
+
+function updateSelectionCount() {
+  const countSpan = document.getElementById('selected-count');
+  if (countSpan) {
+    countSpan.textContent = `${selectedPhotoIds.size}개 선택됨`;
+  }
+}
+
+function downloadSelectedPhotos() {
+  if (selectedPhotoIds.size === 0) return;
+  
+  // 선택된 사진들의 URL 가져오기
+  const selectedPhotos = allPhotosList.filter(photo => selectedPhotoIds.has(photo.id));
+  const photoIds = Array.from(selectedPhotoIds);
+  
+  // 다운로드 카운트 증가 API 호출
+  fetch('/api/archive/photos/download', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ photo_ids: photoIds })
+  }).catch(error => {
+    console.error('다운로드 카운트 증가 실패:', error);
+  });
+  
+  // 각 사진을 다운로드
+  selectedPhotos.forEach((photo, index) => {
+    setTimeout(() => {
+      const link = document.createElement('a');
+      link.href = photo.url;
+      link.download = photo.event_name || `photo_${photo.id}.jpg`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }, index * 100); // 순차적으로 다운로드 (100ms 간격)
+  });
+  
+  // 선택 모드 종료
+  setTimeout(() => {
+    exitSelectionMode();
+  }, selectedPhotos.length * 100 + 100);
+}
+
+// 초기 정렬 옵션 설정
+document.addEventListener('DOMContentLoaded', () => {
+  // 기본 정렬을 랜덤으로 설정
+  const sortOptions = document.querySelectorAll('.sort-option');
+  sortOptions.forEach(option => {
+    if (option.dataset.sort === 'random') {
+      option.classList.add('active');
+      const check = option.querySelector('.sort-check');
+      if (check) check.style.display = 'block';
+    }
+  });
+});
+
 // 초기 로드 (갤러리 뷰가 기본)
 loadTags();
 loadGalleryPhotos();
 updateTagFilterCount();
 </script>
 {% endblock %}
-

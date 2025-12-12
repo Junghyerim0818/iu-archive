@@ -128,7 +128,7 @@ def ensure_photo_columns():
     """Photo 테이블에 필요한 컬럼이 있는지 확인하고 없으면 추가"""
     try:
         uri = app.config["SQLALCHEMY_DATABASE_URI"]
-        columns_to_check = ['file_size', 'tags']
+        columns_to_check = ['file_size', 'tags', 'download_count']
         
         if uri.startswith("postgres"):
             # PostgreSQL: 컬럼 존재 여부 확인
@@ -143,6 +143,8 @@ def ensure_photo_columns():
                         db.session.execute(text("ALTER TABLE photo ADD COLUMN file_size INTEGER"))
                     elif col_name == 'tags':
                         db.session.execute(text("ALTER TABLE photo ADD COLUMN tags VARCHAR(512)"))
+                    elif col_name == 'download_count':
+                        db.session.execute(text("ALTER TABLE photo ADD COLUMN download_count INTEGER DEFAULT 0"))
                     db.session.commit()
                     app.logger.info(f"Photo 테이블에 {col_name} 컬럼 추가 완료")
         elif uri.startswith("sqlite"):
@@ -155,6 +157,8 @@ def ensure_photo_columns():
                         db.session.execute(text("ALTER TABLE photo ADD COLUMN file_size INTEGER"))
                     elif col_name == 'tags':
                         db.session.execute(text("ALTER TABLE photo ADD COLUMN tags VARCHAR(512)"))
+                    elif col_name == 'download_count':
+                        db.session.execute(text("ALTER TABLE photo ADD COLUMN download_count INTEGER DEFAULT 0"))
                     db.session.commit()
                     app.logger.info(f"Photo 테이블에 {col_name} 컬럼 추가 완료")
     except Exception as e:
@@ -226,6 +230,7 @@ class Photo(db.Model):
     tags = db.Column(db.String(512))  # 태그 (쉼표로 구분)
     status = db.Column(db.String(32), default="pending")  # pending/approved/rejected
     file_size = db.Column(db.Integer)  # 파일 크기 (bytes)
+    download_count = db.Column(db.Integer, default=0)  # 다운로드 횟수
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship("User", backref="photos")
@@ -427,13 +432,14 @@ def archive():
 
 @app.route("/api/archive/photos")
 def api_archive_photos():
-    """무한 스크롤을 위한 랜덤 사진 API"""
+    """무한 스크롤을 위한 사진 API (정렬 지원)"""
     import random
     from sqlalchemy import or_
     
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 30, type=int)
     tags_param = request.args.get("tags")  # 여러 태그 필터 (쉼표로 구분)
+    sort_by = request.args.get("sort", "random")  # random, date, downloads
     
     # 모든 승인된 사진 가져오기
     query = Photo.query.filter_by(status="approved")
@@ -446,7 +452,25 @@ def api_archive_photos():
             tag_filters = [Photo.tags.contains(tag) for tag in tags_list]
             query = query.filter(or_(*tag_filters))
     
-    all_approved = query.all()
+    # 정렬 적용
+    if sort_by == "date":
+        # 날짜순 (최신순)
+        query = query.order_by(Photo.taken_date.desc(), Photo.created_at.desc())
+    elif sort_by == "downloads":
+        # 다운로드순 (다운로드 많은 순)
+        query = query.order_by(Photo.download_count.desc(), Photo.taken_date.desc())
+    else:
+        # 랜덤 (기본값)
+        pass
+    
+    if sort_by == "random":
+        all_approved = query.all()
+        # 매번 랜덤으로 섞기
+        shuffled = all_approved.copy()
+        random.shuffle(shuffled)
+        all_approved = shuffled
+    else:
+        all_approved = query.all()
     
     if not all_approved:
         return jsonify({
@@ -455,14 +479,10 @@ def api_archive_photos():
             "page": page
         })
     
-    # 매번 랜덤으로 섞기 (새로운 순서 제공)
-    shuffled = all_approved.copy()
-    random.shuffle(shuffled)
-    
     # 페이지네이션
     start = (page - 1) * per_page
     end = start + per_page
-    photos_page = shuffled[start:end]
+    photos_page = all_approved[start:end]
     
     # 사진 데이터 포맷팅
     photos_data = []
@@ -473,10 +493,11 @@ def api_archive_photos():
             "url": build_file_url(photo),
             "event_name": photo.event_name or "기타",
             "taken_date": photo.taken_date.isoformat() if photo.taken_date else None,
-            "tags": tags_list
+            "tags": tags_list,
+            "download_count": photo.download_count or 0
         })
     
-    has_more = end < len(shuffled)
+    has_more = end < len(all_approved)
     
     return jsonify({
         "photos": photos_data,
@@ -551,6 +572,31 @@ def api_upload_tags():
         "tags": tags_list,
         "date": target_date.isoformat()
     })
+
+
+@app.route("/api/archive/photos/download", methods=["POST"])
+def api_archive_photos_download():
+    """사진 다운로드 시 카운트 증가"""
+    data = request.get_json()
+    if not data or not data.get("photo_ids"):
+        return jsonify({"success": False, "error": "사진 ID가 없습니다."}), 400
+    
+    photo_ids = data.get("photo_ids", [])
+    if not isinstance(photo_ids, list):
+        return jsonify({"success": False, "error": "잘못된 요청 형식입니다."}), 400
+    
+    try:
+        # 각 사진의 다운로드 카운트 증가
+        photos = Photo.query.filter(Photo.id.in_(photo_ids)).all()
+        for photo in photos:
+            photo.download_count = (photo.download_count or 0) + 1
+        
+        db.session.commit()
+        return jsonify({"success": True, "count": len(photos)})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"다운로드 카운트 증가 실패: {e}")
+        return jsonify({"success": False, "error": "다운로드 카운트 증가 실패"}), 500
 
 
 @app.route("/api/archive/tags")
