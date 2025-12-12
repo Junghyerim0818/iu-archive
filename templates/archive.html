@@ -143,7 +143,7 @@
                               </div>
                               <div class="day-content" style="display: none;">
                                 {% for photo in photos %}
-                                  <div class="photo-item">
+                                  <div class="photo-item" data-photo-id="{{ photo.id }}">
                                     <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
                                     <div class="photo-info">
                                       {{ photo.event_name or '기타' }}
@@ -202,6 +202,59 @@ function switchView(view) {
 
 galleryViewBtn.addEventListener('click', () => switchView('gallery'));
 listViewBtn.addEventListener('click', () => switchView('list'));
+
+// 날짜별 리스트 뷰 사진 클릭 이벤트 초기화
+function initializeListViewModel() {
+  // 날짜별 리스트의 모든 사진을 수집
+  const listPhotos = [];
+  const photoItems = document.querySelectorAll('.archive-list-view .photo-item');
+  
+  photoItems.forEach((photoItem, index) => {
+    if (!photoItem.dataset.initialized) {
+      photoItem.dataset.initialized = 'true';
+      const img = photoItem.querySelector('img');
+      if (img) {
+        const photoData = {
+          id: photoItem.dataset.photoId || `list-${index}`,
+          url: img.src,
+          event_name: img.alt || '기타'
+        };
+        const photoIndex = listPhotos.length;
+        listPhotos.push(photoData);
+        
+        // 기존 클릭 이벤트 제거 (base.html에서 추가한 것 제거)
+        const newPhotoItem = photoItem.cloneNode(true);
+        photoItem.parentNode.replaceChild(newPhotoItem, photoItem);
+        
+        // 새로운 클릭 이벤트 추가
+        newPhotoItem.addEventListener('click', () => {
+          openImageModal(photoData.url, photoData.event_name, photoIndex, listPhotos);
+        });
+        
+        // 커서 스타일
+        const newImg = newPhotoItem.querySelector('img');
+        if (newImg) {
+          newImg.style.cursor = 'zoom-in';
+        }
+      }
+    }
+  });
+  
+  // allPhotosList를 날짜별 리스트 사진으로 업데이트
+  allPhotosList = listPhotos;
+}
+
+// 날짜별 리스트 뷰로 전환할 때 초기화
+const originalSwitchView = switchView;
+switchView = function(view) {
+  originalSwitchView(view);
+  if (view === 'list') {
+    // 약간의 지연 후 초기화 (DOM이 완전히 렌더링된 후)
+    setTimeout(() => {
+      initializeListViewModel();
+    }, 100);
+  }
+};
 
 // 날짜별 뷰 토글 함수
 function toggleYear(year) {
@@ -547,31 +600,25 @@ function renderGallery() {
         photoItem.appendChild(checkmark);
       }
       
-      // 클릭 이벤트
-      photoItem.addEventListener('click', (e) => {
-        if (selectionMode) {
-          togglePhotoSelection(photo.id, photoItem);
-        } else {
-          openImageModal(photo.url, photo.event_name || '', globalIndex, allPhotosList);
-        }
-      });
-      
       // 꾹 누르기 (long press) 이벤트 - 3초간 누르면 선택 모드 활성화
       let pressTimer = null;
       let hasEnteredSelectionMode = false;
+      let clickPrevented = false;
       
       photoItem.addEventListener('mousedown', (e) => {
         if (!selectionMode) {
           hasEnteredSelectionMode = false;
+          clickPrevented = false;
           pressTimer = setTimeout(() => {
             enterSelectionMode(photo.id, photoItem);
             pressTimer = null;
             hasEnteredSelectionMode = true;
+            clickPrevented = true;
           }, 3000); // 3초
         }
       });
       
-      photoItem.addEventListener('mouseup', () => {
+      photoItem.addEventListener('mouseup', (e) => {
         if (pressTimer && !hasEnteredSelectionMode) {
           clearTimeout(pressTimer);
           pressTimer = null;
@@ -589,11 +636,12 @@ function renderGallery() {
       photoItem.addEventListener('touchstart', (e) => {
         if (!selectionMode) {
           hasEnteredSelectionMode = false;
+          clickPrevented = false;
           pressTimer = setTimeout(() => {
             enterSelectionMode(photo.id, photoItem);
             pressTimer = null;
             hasEnteredSelectionMode = true;
-            e.preventDefault();
+            clickPrevented = true;
           }, 3000); // 3초
         }
       });
@@ -611,6 +659,22 @@ function renderGallery() {
         if (pressTimer && !hasEnteredSelectionMode) {
           clearTimeout(pressTimer);
           pressTimer = null;
+        }
+      });
+      
+      // 클릭 이벤트
+      photoItem.addEventListener('click', (e) => {
+        if (clickPrevented) {
+          e.preventDefault();
+          e.stopPropagation();
+          clickPrevented = false;
+          return;
+        }
+        
+        if (selectionMode) {
+          togglePhotoSelection(photo.id, photoItem);
+        } else {
+          openImageModal(photo.url, photo.event_name || '', globalIndex, allPhotosList);
         }
       });
       
