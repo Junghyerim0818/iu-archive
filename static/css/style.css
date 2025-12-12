@@ -800,7 +800,7 @@ h1.iu-title {
   gap: 8px;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(10px);
-  padding: 8px;
+  padding: 0 8px;
   border-radius: 30px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
@@ -2992,7 +2992,7 @@ h1.iu-title {
 
   .archive-stats {
     order: 1;
-    flex: 1;
+    flex: 1 1 0;
     min-width: 0;
     margin-bottom: 0;
     margin-right: 8px;
@@ -3002,12 +3002,14 @@ h1.iu-title {
     order: 3;
     flex: 0 0 calc(50% - 4px);
     min-width: 0;
+    width: calc(50% - 4px);
   }
 
   .sort-dropdown {
     order: 4;
     flex: 0 0 calc(50% - 4px);
     min-width: 0;
+    width: calc(50% - 4px);
   }
 
   .archive-view-toggle {
@@ -3019,6 +3021,7 @@ h1.iu-title {
     gap: 4px;
     height: 44px;
     width: auto;
+    flex-shrink: 0;
   }
 
   .view-toggle-btn {
