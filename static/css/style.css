@@ -533,6 +533,7 @@ h1.iu-title {
   text-decoration: none;
   outline: none;
   -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 
 .download-mode-button:hover {
@@ -566,6 +567,10 @@ h1.iu-title {
   bottom: 140px;
   right: 24px;
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
 }
 
 .archive-upload-btn,
@@ -3342,6 +3347,7 @@ h1.iu-title {
   .upload-archive-button {
     bottom: 115px;
     right: 16px;
+    gap: 10px;
   }
 
   .archive-upload-btn,
@@ -3352,6 +3358,16 @@ h1.iu-title {
 
   .archive-upload-btn svg,
   .upload-archive-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .download-mode-button {
+    width: 48px;
+    height: 48px;
+  }
+
+  .download-mode-button svg {
     width: 20px;
     height: 20px;
   }
