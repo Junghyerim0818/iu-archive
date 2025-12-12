@@ -44,18 +44,6 @@
   <div class="card card-lg upload-form-container">
     <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" class="upload-form">
       <div class="form-group">
-        <label for="event_name">행사명</label>
-        <input 
-          type="text" 
-          id="event_name"
-          name="event_name" 
-          placeholder="예: 콘서트, 팬미팅, 공연 등" 
-          required
-        >
-        <small>사진이 촬영된 행사나 업로드된 SNS 이름을 입력하세요</small>
-      </div>
-
-      <div class="form-group">
         <label for="taken_date">촬영일</label>
         <input 
           type="date" 
@@ -68,13 +56,37 @@
       </div>
 
       <div class="form-group">
+        <label for="event_name">사진명</label>
+        <div class="event-name-input-wrapper">
+          <input 
+            type="text" 
+            id="event_name"
+            name="event_name" 
+            list="event_name_suggestions"
+            placeholder="예: 콘서트, 팬미팅, 공연 등" 
+            required
+            autocomplete="off"
+          >
+          <datalist id="event_name_suggestions"></datalist>
+          <div class="event-name-suggestions" id="eventNameSuggestions" style="display: none;"></div>
+        </div>
+        <small>사진이 촬영된 행사나 업로드된 SNS 이름을 입력하세요</small>
+      </div>
+
+      <div class="form-group">
         <label for="tags">태그</label>
-        <input 
-          type="text" 
-          id="tags"
-          name="tags" 
-          placeholder="예: 콘서트, 팬미팅, 공연, 인스타그램 등 (쉼표로 구분)" 
-        >
+        <div class="tags-input-wrapper">
+          <input 
+            type="text" 
+            id="tags"
+            name="tags" 
+            list="tags_suggestions"
+            placeholder="예: 콘서트, 팬미팅, 공연, 인스타그램 등 (쉼표로 구분)" 
+            autocomplete="off"
+          >
+          <datalist id="tags_suggestions"></datalist>
+          <div class="tags-suggestions" id="tagsSuggestions" style="display: none;"></div>
+        </div>
         <small>사진을 분류할 태그를 입력하세요. 쉼표로 구분하여 여러 개 입력할 수 있습니다.</small>
       </div>
 
@@ -830,8 +842,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (dateFormGroup && dateInput) {
     dateFormGroup.style.cursor = 'pointer';
     
-    // form-group 내부의 모든 요소에 클릭 이벤트 추가
-    const clickableElements = dateFormGroup.querySelectorAll('label, small');
+    // form-group 내부의 small 태그에만 클릭 이벤트 추가 (label은 제외)
+    const clickableElements = dateFormGroup.querySelectorAll('small');
     
     clickableElements.forEach(element => {
       element.style.cursor = 'pointer';
@@ -883,6 +895,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     
+    // 날짜 변경 시 해당 날짜의 행사명 및 태그 추천 목록 가져오기
+    dateInput.addEventListener('change', () => {
+      const selectedDate = dateInput.value;
+      if (selectedDate) {
+        loadEventNameSuggestions(selectedDate);
+        loadTagSuggestions(selectedDate);
+      }
+    });
+    
+    // 초기 로드 시에도 추천 목록 로드 (기본 날짜가 설정되어 있는 경우)
+    if (dateInput.value) {
+      loadEventNameSuggestions(dateInput.value);
+      loadTagSuggestions(dateInput.value);
+    }
+    
     // form-group 자체를 클릭한 경우 (빈 공간)
     dateFormGroup.addEventListener('click', (e) => {
       // 이미 다른 요소를 클릭한 경우는 제외
@@ -903,5 +930,177 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// 행사명 추천 목록 로드
+function loadEventNameSuggestions(date) {
+  const eventNameInput = document.getElementById('event_name');
+  const datalist = document.getElementById('event_name_suggestions');
+  const suggestionsDiv = document.getElementById('eventNameSuggestions');
+  
+  if (!eventNameInput || !datalist) return;
+  
+  // 기존 옵션 제거
+  datalist.innerHTML = '';
+  suggestionsDiv.innerHTML = '';
+  suggestionsDiv.style.display = 'none';
+  
+  // API 호출
+  fetch(`/api/upload/event-names?date=${date}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.event_names && data.event_names.length > 0) {
+        // datalist에 옵션 추가
+        data.event_names.forEach(eventName => {
+          const option = document.createElement('option');
+          option.value = eventName;
+          datalist.appendChild(option);
+        });
+        
+        // 커스텀 추천 목록 표시
+        showEventNameSuggestions(data.event_names, eventNameInput, suggestionsDiv);
+      }
+    })
+    .catch(error => {
+      console.error('Error loading event name suggestions:', error);
+    });
+}
+
+// 행사명 추천 목록 표시
+function showEventNameSuggestions(eventNames, input, suggestionsDiv) {
+  suggestionsDiv.innerHTML = '';
+  
+  if (eventNames.length === 0) {
+    suggestionsDiv.style.display = 'none';
+    return;
+  }
+  
+  // 추천 제목 추가
+  const title = document.createElement('div');
+  title.className = 'suggestions-title';
+  title.textContent = '이 날짜에 등록된 행사명:';
+  suggestionsDiv.appendChild(title);
+  
+  // 추천 목록 추가
+  eventNames.forEach(eventName => {
+    const suggestionItem = document.createElement('div');
+    suggestionItem.className = 'suggestion-item';
+    suggestionItem.textContent = eventName;
+    suggestionItem.addEventListener('click', () => {
+      input.value = eventName;
+      suggestionsDiv.style.display = 'none';
+      input.focus();
+    });
+    suggestionsDiv.appendChild(suggestionItem);
+  });
+  
+  suggestionsDiv.style.display = 'block';
+  
+  // 입력 필드 외부 클릭 시 추천 목록 숨기기
+  document.addEventListener('click', function hideSuggestions(e) {
+    if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+      suggestionsDiv.style.display = 'none';
+    }
+  });
+  
+  // 입력 필드 포커스 시 추천 목록 표시
+  input.addEventListener('focus', () => {
+    if (eventNames.length > 0) {
+      suggestionsDiv.style.display = 'block';
+    }
+  });
+}
+
+// 태그 추천 목록 로드
+function loadTagSuggestions(date) {
+  const tagsInput = document.getElementById('tags');
+  const datalist = document.getElementById('tags_suggestions');
+  const suggestionsDiv = document.getElementById('tagsSuggestions');
+  
+  if (!tagsInput || !datalist) return;
+  
+  // 기존 옵션 제거
+  datalist.innerHTML = '';
+  suggestionsDiv.innerHTML = '';
+  suggestionsDiv.style.display = 'none';
+  
+  // API 호출
+  fetch(`/api/upload/tags?date=${date}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.tags && data.tags.length > 0) {
+        // datalist에 옵션 추가
+        data.tags.forEach(tag => {
+          const option = document.createElement('option');
+          option.value = tag;
+          datalist.appendChild(option);
+        });
+        
+        // 커스텀 추천 목록 표시
+        showTagSuggestions(data.tags, tagsInput, suggestionsDiv);
+      }
+    })
+    .catch(error => {
+      console.error('Error loading tag suggestions:', error);
+    });
+}
+
+// 태그 추천 목록 표시
+function showTagSuggestions(tags, input, suggestionsDiv) {
+  suggestionsDiv.innerHTML = '';
+  
+  if (tags.length === 0) {
+    suggestionsDiv.style.display = 'none';
+    return;
+  }
+  
+  // 추천 제목 추가
+  const title = document.createElement('div');
+  title.className = 'suggestions-title';
+  title.textContent = '이 날짜에 등록된 태그:';
+  suggestionsDiv.appendChild(title);
+  
+  // 추천 목록 추가
+  tags.forEach(tag => {
+    const suggestionItem = document.createElement('div');
+    suggestionItem.className = 'suggestion-item';
+    suggestionItem.textContent = tag;
+    suggestionItem.addEventListener('click', () => {
+      // 기존 태그가 있으면 쉼표로 구분하여 추가
+      const currentTags = input.value.trim();
+      if (currentTags) {
+        // 이미 해당 태그가 있는지 확인
+        const existingTags = currentTags.split(',').map(t => t.trim());
+        if (!existingTags.includes(tag)) {
+          input.value = currentTags + ', ' + tag;
+        }
+      } else {
+        input.value = tag;
+      }
+      suggestionsDiv.style.display = 'none';
+      input.focus();
+    });
+    suggestionsDiv.appendChild(suggestionItem);
+  });
+  
+  suggestionsDiv.style.display = 'block';
+  
+  // 입력 필드 외부 클릭 시 추천 목록 숨기기
+  const hideHandler = function(e) {
+    if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+      suggestionsDiv.style.display = 'none';
+      document.removeEventListener('click', hideHandler);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('click', hideHandler);
+  }, 100);
+  
+  // 입력 필드 포커스 시 추천 목록 표시
+  input.addEventListener('focus', () => {
+    if (tags.length > 0) {
+      suggestionsDiv.style.display = 'block';
+    }
+  });
+}
 </script>
 {% endblock %}

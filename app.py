@@ -472,6 +472,73 @@ def api_archive_photos():
     })
 
 
+@app.route("/api/upload/event-names")
+@login_required
+def api_upload_event_names():
+    """특정 날짜에 등록된 행사명 목록 반환"""
+    date_str = request.args.get("date")
+    if not date_str:
+        return jsonify({"event_names": []}), 400
+    
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"event_names": []}), 400
+    
+    # 해당 날짜에 등록된 사진들의 행사명 목록 가져오기 (중복 제거)
+    photos = Photo.query.filter(
+        Photo.taken_date == target_date
+    ).all()
+    
+    # 행사명 추출 및 중복 제거
+    event_names = set()
+    for photo in photos:
+        if photo.event_name and photo.event_name.strip():
+            event_names.add(photo.event_name.strip())
+    
+    # 정렬하여 반환
+    event_names_list = sorted(list(event_names))
+    
+    return jsonify({
+        "event_names": event_names_list,
+        "date": target_date.isoformat()
+    })
+
+
+@app.route("/api/upload/tags")
+@login_required
+def api_upload_tags():
+    """특정 날짜에 등록된 태그 목록 반환"""
+    date_str = request.args.get("date")
+    if not date_str:
+        return jsonify({"tags": []}), 400
+    
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"tags": []}), 400
+    
+    # 해당 날짜에 등록된 사진들의 태그 목록 가져오기
+    photos = Photo.query.filter(
+        Photo.taken_date == target_date
+    ).all()
+    
+    # 태그 추출 및 중복 제거
+    all_tags = set()
+    for photo in photos:
+        if photo.tags and photo.tags.strip():
+            tags_list = [tag.strip() for tag in photo.tags.split(",") if tag.strip()]
+            all_tags.update(tags_list)
+    
+    # 정렬하여 반환
+    tags_list = sorted(list(all_tags))
+    
+    return jsonify({
+        "tags": tags_list,
+        "date": target_date.isoformat()
+    })
+
+
 @app.route("/api/archive/tags")
 def api_archive_tags():
     """사용 가능한 모든 태그 목록 반환"""
