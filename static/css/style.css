@@ -2202,7 +2202,6 @@ h1.iu-title {
 }
 
 .profile-date-section.expanded .profile-photos-container {
-  margin-top: 16px;
   max-height: 5000px;
 }
 
@@ -2966,3 +2965,4 @@ h1.iu-title {
     font-size: 16px;
   }
 }
+
