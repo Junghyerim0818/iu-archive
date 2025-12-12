@@ -25,12 +25,21 @@
       </div>
     </div>
     
-      <!-- 태그 필터 -->
-      <div class="gallery-tag-filter-sidebar" id="tagFilter">
-        <div class="tag-filter-list" id="tagFilterList">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            <p>태그를 불러오는 중...</p>
+      <!-- 태그 필터 드롭다운 -->
+      <div class="tag-filter-dropdown" id="tagFilter">
+        <button class="tag-filter-dropdown-btn" id="tagFilterBtn" onclick="toggleTagDropdown()">
+          <span class="tag-filter-label">태그 필터</span>
+          <span class="tag-filter-count" id="tagFilterCount" style="display: none;">0</span>
+          <svg class="tag-filter-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+        <div class="tag-filter-dropdown-menu" id="tagFilterDropdown">
+          <div class="tag-filter-list" id="tagFilterList">
+            <div class="loading-indicator">
+              <div class="loading-spinner"></div>
+              <p>태그를 불러오는 중...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -208,6 +217,42 @@ const galleryContainer = document.getElementById('galleryContainer');
 const loadingIndicator = document.getElementById('loadingIndicator');
 const galleryEmptyState = document.getElementById('galleryEmptyState');
 const tagFilterList = document.getElementById('tagFilterList');
+const tagFilterDropdown = document.getElementById('tagFilterDropdown');
+const tagFilterBtn = document.getElementById('tagFilterBtn');
+const tagFilterCount = document.getElementById('tagFilterCount');
+
+// 드롭다운 토글
+function toggleTagDropdown() {
+  tagFilterDropdown.classList.toggle('show');
+  const arrow = tagFilterBtn.querySelector('.tag-filter-arrow');
+  if (tagFilterDropdown.classList.contains('show')) {
+    arrow.style.transform = 'rotate(180deg)';
+  } else {
+    arrow.style.transform = 'rotate(0deg)';
+  }
+}
+
+// 드롭다운 외부 클릭 시 닫기
+document.addEventListener('click', (e) => {
+  const tagFilter = document.getElementById('tagFilter');
+  if (tagFilter && !tagFilter.contains(e.target)) {
+    tagFilterDropdown.classList.remove('show');
+    const arrow = tagFilterBtn.querySelector('.tag-filter-arrow');
+    arrow.style.transform = 'rotate(0deg)';
+  }
+});
+
+// 선택된 태그 개수 업데이트
+function updateTagFilterCount() {
+  if (selectedTags.length > 0) {
+    tagFilterCount.textContent = selectedTags.length;
+    tagFilterCount.style.display = 'inline-block';
+    tagFilterBtn.querySelector('.tag-filter-label').textContent = '태그';
+  } else {
+    tagFilterCount.style.display = 'none';
+    tagFilterBtn.querySelector('.tag-filter-label').textContent = '태그 필터';
+  }
+}
 
 // 태그 목록 로드
 function loadTags() {
@@ -255,6 +300,9 @@ function filterByTag(tag) {
       btn.classList.remove('active');
     }
   });
+  
+  // 선택된 태그 개수 업데이트
+  updateTagFilterCount();
   
   // 갤러리 초기화 및 재로드
   photosByDate = {};
@@ -393,5 +441,6 @@ window.addEventListener('scroll', handleScroll);
 // 초기 로드 (갤러리 뷰가 기본)
 loadTags();
 loadGalleryPhotos();
+updateTagFilterCount();
 </script>
 {% endblock %}

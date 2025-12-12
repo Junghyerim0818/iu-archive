@@ -899,6 +899,7 @@ h1.iu-title {
 .archive-content-area {
   flex: 1;
   min-width: 0;
+  margin-top: 2rem;
 }
 
 /* 갤러리 뷰 */
@@ -907,42 +908,6 @@ h1.iu-title {
   min-height: 100vh;
 }
 
-.gallery-tag-filter-sidebar {
-  flex: 1;
-  min-width: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 30px;
-  padding: 8px 12px;
-  min-height: 56px; /* 최소 높이 */
-  max-height: 56px; /* 최대 높이 (스크롤 가능) */
-  overflow-y: auto;
-  overflow-x: hidden;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  box-sizing: border-box;
-}
-
-.gallery-tag-filter-sidebar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.gallery-tag-filter-sidebar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
-}
-
-.gallery-tag-filter-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-.gallery-tag-filter-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
 
 
 
@@ -961,20 +926,21 @@ h1.iu-title {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--text-white);
-  padding: 6px 12px;
-  border-radius: 20px;
+  padding: 10px 14px;
+  border-radius: 12px;
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s ease;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-  flex-shrink: 0;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
 }
 
 .tag-filter-btn .tag-name {
-  flex-shrink: 0;
+  flex: 1;
 }
 
 .tag-filter-btn .tag-count {
@@ -2720,7 +2686,7 @@ h1.iu-title {
   .archive-list-view .archive-gallery-view{
     padding: 1rem;
   }
-  
+
   .archive-stats {
     padding: 0 16px;
     gap: 12px;
@@ -2968,5 +2934,3 @@ h1.iu-title {
     font-size: 16px;
   }
 }
-
-
