@@ -556,26 +556,30 @@ function renderGallery() {
         }
       });
       
-      // 꾹 누르기 (long press) 이벤트
+      // 꾹 누르기 (long press) 이벤트 - 3초간 누르면 선택 모드 활성화
       let pressTimer = null;
+      let hasEnteredSelectionMode = false;
+      
       photoItem.addEventListener('mousedown', (e) => {
         if (!selectionMode) {
+          hasEnteredSelectionMode = false;
           pressTimer = setTimeout(() => {
             enterSelectionMode(photo.id, photoItem);
             pressTimer = null;
-          }, 500); // 500ms
+            hasEnteredSelectionMode = true;
+          }, 3000); // 3초
         }
       });
       
       photoItem.addEventListener('mouseup', () => {
-        if (pressTimer) {
+        if (pressTimer && !hasEnteredSelectionMode) {
           clearTimeout(pressTimer);
           pressTimer = null;
         }
       });
       
       photoItem.addEventListener('mouseleave', () => {
-        if (pressTimer) {
+        if (pressTimer && !hasEnteredSelectionMode) {
           clearTimeout(pressTimer);
           pressTimer = null;
         }
@@ -584,23 +588,27 @@ function renderGallery() {
       // 터치 이벤트 (모바일)
       photoItem.addEventListener('touchstart', (e) => {
         if (!selectionMode) {
+          hasEnteredSelectionMode = false;
           pressTimer = setTimeout(() => {
             enterSelectionMode(photo.id, photoItem);
             pressTimer = null;
+            hasEnteredSelectionMode = true;
             e.preventDefault();
-          }, 500);
+          }, 3000); // 3초
         }
       });
       
       photoItem.addEventListener('touchend', (e) => {
-        if (pressTimer) {
+        // 선택 모드가 활성화되지 않았을 때만 타이머 클리어
+        if (pressTimer && !hasEnteredSelectionMode) {
           clearTimeout(pressTimer);
           pressTimer = null;
         }
+        // 선택 모드가 활성화되었다면 상태 유지 (아무것도 하지 않음)
       });
       
       photoItem.addEventListener('touchcancel', () => {
-        if (pressTimer) {
+        if (pressTimer && !hasEnteredSelectionMode) {
           clearTimeout(pressTimer);
           pressTimer = null;
         }
