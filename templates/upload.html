@@ -497,7 +497,8 @@ async function handleUpload() {
             headers: {
               'Content-Type': presignedInfo.content_type
             },
-            body: file
+            body: file,
+            mode: 'cors'  // CORS 모드 명시
           });
           
           if (!uploadResponse.ok) {

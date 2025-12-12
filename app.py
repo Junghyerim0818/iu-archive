@@ -636,7 +636,8 @@ def api_upload_presigned():
             version="v4",
             expiration=timedelta(hours=1),
             method="PUT",
-            content_type=content_type
+            content_type=content_type,
+            headers={"x-goog-content-length-range": f"0,{file_size}"}
         )
         
         presigned_urls.append({
