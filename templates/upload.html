@@ -437,10 +437,116 @@ async function handleUpload() {
   window.addEventListener('beforeunload', beforeUnloadHandler);
   
   try {
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData
-    });
+    // GCS를 사용하는 경우 presigned URL 방식 사용
+    const usePresigned = {{ 'true' if app.config.get('STORAGE_BACKEND') == 'gcs' else 'false' }};
+    
+    let response;
+    let result = {};
+    
+    if (usePresigned) {
+      // Presigned URL 방식: 클라이언트에서 직접 GCS에 업로드
+      uploadStatus.textContent = '업로드 준비 중...';
+      progressFill.style.width = '20%';
+      
+      // 1. Presigned URL 요청
+      const presignedResponse = await fetch('/api/upload/presigned', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          event_name: eventName,
+          taken_date: takenDate,
+          tags: tags,
+          files: selectedFiles.map(file => ({
+            name: file.name,
+            size: file.size,
+            type: file.type
+          }))
+        })
+      });
+      
+      const presignedResult = await presignedResponse.json();
+      
+      if (!presignedResponse.ok || !presignedResult.success) {
+        throw new Error(presignedResult.error || 'Presigned URL 생성 실패');
+      }
+      
+      // 2. 각 파일을 GCS에 직접 업로드
+      uploadStatus.textContent = 'GCS에 업로드 중...';
+      progressFill.style.width = '40%';
+      
+      const uploadedPaths = [];
+      const totalFiles = presignedResult.presigned_urls.length;
+      
+      for (let i = 0; i < presignedResult.presigned_urls.length; i++) {
+        const presignedInfo = presignedResult.presigned_urls[i];
+        const file = selectedFiles[i];
+        
+        // GCS에 직접 업로드
+        const uploadResponse = await fetch(presignedInfo.url, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': presignedInfo.content_type
+          },
+          body: file
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error(`파일 업로드 실패: ${file.name}`);
+        }
+        
+        uploadedPaths.push({
+          path: presignedInfo.path,
+          filename: presignedInfo.filename,
+          size: presignedInfo.size
+        });
+        
+        // 진행률 업데이트
+        const progress = 40 + (i + 1) / totalFiles * 40;
+        progressFill.style.width = `${progress}%`;
+        uploadStatus.textContent = `업로드 중... (${i + 1}/${totalFiles})`;
+      }
+      
+      // 3. 업로드 완료 후 DB에 기록
+      uploadStatus.textContent = '업로드 완료 처리 중...';
+      progressFill.style.width = '90%';
+      
+      response = await fetch('/api/upload/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          paths: uploadedPaths,
+          event_name: presignedResult.event_name,
+          taken_date: presignedResult.taken_date,
+          tags: presignedResult.tags
+        })
+      });
+      
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        result = { success: response.ok, error: text || `HTTP ${response.status}` };
+      }
+    } else {
+      // 기존 방식: 서버를 통해 업로드
+      response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        result = { success: response.ok, error: text || `HTTP ${response.status}` };
+      }
+    }
 
     const contentType = response.headers.get('content-type');
     let result = {};

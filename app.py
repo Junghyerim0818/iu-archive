@@ -508,10 +508,205 @@ def files(filename):
     return send_from_directory(upload_root, filename)
 
 
+@app.route("/api/upload/presigned", methods=["POST"])
+@login_required
+def api_upload_presigned():
+    """GCS presigned URL 생성 API (클라이언트에서 직접 업로드용)"""
+    user = current_user()
+    today = date.today()
+    
+    # 오늘 업로드한 파일 개수와 총 크기 계산
+    today_photos = Photo.query.filter(
+        Photo.user_id == user.id,
+        db.func.date(Photo.created_at) == today,
+    ).all()
+    
+    today_count = len(today_photos)
+    today_total_size = 0
+    if not user.is_admin:
+        if app.config["STORAGE_BACKEND"] == "gcs":
+            for photo in today_photos:
+                if photo.file_size:
+                    today_total_size += photo.file_size
+        else:
+            upload_root = ensure_upload_folder()
+            for photo in today_photos:
+                try:
+                    photo_path = upload_root / photo.relative_path
+                    if photo_path.exists():
+                        today_total_size += photo_path.stat().st_size
+                except Exception:
+                    pass
+    
+    # 제한 설정
+    MAX_FILES_PER_DAY = 20
+    MAX_SIZE_PER_DAY = 100 * 1024 * 1024  # 100MB
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    
+    # 요청 데이터 받기
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "error": "요청 데이터가 없습니다."}), 400
+    
+    event_name = data.get("event_name", "").strip() or "기타"
+    taken_date_str = data.get("taken_date") or str(today)
+    try:
+        taken_date_value = datetime.strptime(taken_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"success": False, "error": "날짜 형식이 올바르지 않습니다."}), 400
+    
+    tags_str = data.get("tags", "").strip()
+    tags_list = [tag.strip() for tag in tags_str.split(",") if tag.strip()]
+    tags = ",".join(sorted(set(tags_list))) if tags_list else None
+    
+    files_info = data.get("files", [])  # [{"name": "...", "size": 1234, "type": "image/jpeg"}, ...]
+    
+    if not files_info:
+        return jsonify({"success": False, "error": "파일 정보가 없습니다."}), 400
+    
+    # 할당량 체크
+    if not user.is_admin:
+        if today_count + len(files_info) > MAX_FILES_PER_DAY:
+            remaining = max(0, MAX_FILES_PER_DAY - today_count)
+            return jsonify({
+                "success": False,
+                "error": f"오늘 업로드 한도에 도달했습니다. (최대 {MAX_FILES_PER_DAY}장)",
+                "error_type": "file_limit_exceeded",
+                "today_count": today_count,
+                "max_files": MAX_FILES_PER_DAY,
+                "remaining": remaining
+            }), 400
+        
+        total_new_size = sum(f.get("size", 0) for f in files_info)
+        
+        # 파일 크기 체크
+        oversized_files = [f for f in files_info if f.get("size", 0) > MAX_FILE_SIZE]
+        if oversized_files:
+            return jsonify({
+                "success": False,
+                "error": f"파일 크기가 너무 큽니다. (최대 {MAX_FILE_SIZE / (1024 * 1024):.0f}MB)",
+                "error_type": "file_size_exceeded",
+                "filename": oversized_files[0].get("name", "알 수 없음"),
+                "file_size_mb": round(oversized_files[0].get("size", 0) / (1024 * 1024), 2),
+                "max_size_mb": MAX_FILE_SIZE / (1024 * 1024)
+            }), 400
+        
+        # 총 용량 체크
+        if today_total_size + total_new_size > MAX_SIZE_PER_DAY:
+            remaining_mb = (MAX_SIZE_PER_DAY - today_total_size) / (1024 * 1024)
+            return jsonify({
+                "success": False,
+                "error": f"오늘 업로드 용량 한도에 도달했습니다. (남은 용량: {remaining_mb:.1f}MB)",
+                "error_type": "size_limit_exceeded",
+                "today_total_size_mb": round(today_total_size / (1024 * 1024), 2),
+                "new_size_mb": round(total_new_size / (1024 * 1024), 2),
+                "max_size_mb": MAX_SIZE_PER_DAY / (1024 * 1024),
+                "remaining_mb": round(remaining_mb, 2)
+            }), 400
+    
+    # GCS를 사용하지 않으면 기존 방식으로 폴백
+    if app.config["STORAGE_BACKEND"] != "gcs":
+        return jsonify({"success": False, "error": "GCS를 사용하지 않는 환경에서는 presigned URL을 사용할 수 없습니다."}), 400
+    
+    # Presigned URL 생성
+    base_timestamp = datetime.utcnow()
+    presigned_urls = []
+    
+    for idx, file_info in enumerate(files_info):
+        filename = file_info.get("name", f"file_{idx}")
+        file_size = file_info.get("size", 0)
+        content_type = file_info.get("type", "application/octet-stream")
+        
+        safe_name = secure_filename(filename)
+        if not safe_name:
+            safe_name = f"file_{idx}.jpg"
+        
+        folder_name = str(taken_date_value)
+        timestamp = base_timestamp.strftime("%Y%m%d%H%M%S%f") + f"_{idx}"
+        relative_path = Path(folder_name) / f"{timestamp}_{safe_name}"
+        relative_path_str = str(relative_path).replace("\\", "/")
+        relative_path_str = sanitize_gcs_path(relative_path_str)
+        
+        blob = gcs_bucket.blob(relative_path_str)
+        blob.content_type = content_type
+        
+        # Presigned URL 생성 (업로드용, 1시간 유효)
+        from datetime import timedelta
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(hours=1),
+            method="PUT",
+            content_type=content_type
+        )
+        
+        presigned_urls.append({
+            "url": url,
+            "path": relative_path_str,
+            "filename": filename,
+            "size": file_size,
+            "content_type": content_type
+        })
+    
+    return jsonify({
+        "success": True,
+        "presigned_urls": presigned_urls,
+        "event_name": event_name,
+        "taken_date": taken_date_value.isoformat(),
+        "tags": tags,
+        "user_id": user.id
+    })
+
+
+@app.route("/api/upload/complete", methods=["POST"])
+@login_required
+def api_upload_complete():
+    """업로드 완료 후 DB에 기록하는 API"""
+    user = current_user()
+    data = request.get_json()
+    
+    if not data or not data.get("paths"):
+        return jsonify({"success": False, "error": "업로드된 파일 경로가 없습니다."}), 400
+    
+    uploaded_paths = data.get("paths", [])  # [{"path": "...", "filename": "...", "size": 1234}, ...]
+    event_name = data.get("event_name", "기타")
+    taken_date_str = data.get("taken_date")
+    tags = data.get("tags")
+    
+    try:
+        taken_date_value = datetime.strptime(taken_date_str, "%Y-%m-%d").date() if taken_date_str else date.today()
+    except ValueError:
+        return jsonify({"success": False, "error": "날짜 형식이 올바르지 않습니다."}), 400
+    
+    # DB에 기록
+    uploaded_count = 0
+    for path_info in uploaded_paths:
+        photo_data = {
+            "user_id": user.id,
+            "relative_path": path_info["path"],
+            "original_name": path_info.get("filename", "unknown"),
+            "event_name": event_name,
+            "taken_date": taken_date_value,
+            "tags": tags,
+            "status": "pending",
+            "file_size": path_info.get("size", 0),
+        }
+        photo = Photo(**photo_data)
+        db.session.add(photo)
+        uploaded_count += 1
+    
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "message": f"{uploaded_count}개의 파일이 업로드되었습니다.",
+        "count": uploaded_count
+    })
+
+
 @app.route("/api/upload", methods=["POST"])
 @login_required
 def api_upload():
-    """비동기 다중 파일 업로드 API"""
+    """기존 업로드 API (로컬 스토리지용 또는 폴백)"""
     user = current_user()
     today = date.today()
     
@@ -676,7 +871,7 @@ def api_upload():
     uploaded_count = len(file_tasks)
     return jsonify({
         "success": True,
-        "message": f"{uploaded_count}개의 파일이 업로드 대기열에 추가되었습니다. 백그라운드에서 처리 중입니다.",
+        "message": f"{uploaded_count}개의 파일이 업로드되었습니다.",
         "count": uploaded_count
     })
 
