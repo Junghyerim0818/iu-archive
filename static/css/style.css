@@ -955,6 +955,7 @@ h1.iu-title {
 /* 갤러리 뷰 */
 .archive-gallery-view {
   width: 100%;
+  margin-bottom: 2rem;
   min-height: 100vh;
 }
 
@@ -3447,3 +3448,4 @@ h1.iu-title {
     right: 4px;
   }
 }
+
