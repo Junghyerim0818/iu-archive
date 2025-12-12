@@ -2404,7 +2404,7 @@ h1.iu-title {
 
 .admin-photo-card {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -2419,9 +2419,9 @@ h1.iu-title {
 }
 
 .admin-photo-card.selected {
-  border-color: rgba(129, 199, 132, 0.4);
+  border-color: rgba(129, 199, 132, 0.8);
+  border-width: 2px;
   background: rgba(129, 199, 132, 0.05);
-  box-shadow: 0 0 0 2px rgba(129, 199, 132, 0.2);
 }
 
 .photo-checkbox-wrapper {
@@ -2528,7 +2528,6 @@ h1.iu-title {
 }
 
 .batch-actions-info span {
-  color: #81c784;
   font-size: 18px;
 }
 

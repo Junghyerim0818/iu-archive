@@ -974,6 +974,21 @@ function showEventNameSuggestions(eventNames, input, suggestionsDiv) {
     return;
   }
   
+  // 기존 이벤트 리스너 제거 (중복 방지)
+  const existingHideHandler = suggestionsDiv._hideHandler;
+  const existingFocusHandler = input._eventNameFocusHandler;
+  const existingBlurHandler = input._eventNameBlurHandler;
+  
+  if (existingHideHandler) {
+    document.removeEventListener('click', existingHideHandler);
+  }
+  if (existingFocusHandler) {
+    input.removeEventListener('focus', existingFocusHandler);
+  }
+  if (existingBlurHandler) {
+    input.removeEventListener('blur', existingBlurHandler);
+  }
+  
   // 추천 제목 추가
   const title = document.createElement('div');
   title.className = 'suggestions-title';
@@ -993,21 +1008,44 @@ function showEventNameSuggestions(eventNames, input, suggestionsDiv) {
     suggestionsDiv.appendChild(suggestionItem);
   });
   
-  suggestionsDiv.style.display = 'block';
-  
-  // 입력 필드 외부 클릭 시 추천 목록 숨기기
-  document.addEventListener('click', function hideSuggestions(e) {
-    if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-      suggestionsDiv.style.display = 'none';
-    }
-  });
-  
   // 입력 필드 포커스 시 추천 목록 표시
-  input.addEventListener('focus', () => {
+  const focusHandler = () => {
     if (eventNames.length > 0) {
       suggestionsDiv.style.display = 'block';
     }
-  });
+  };
+  input._eventNameFocusHandler = focusHandler;
+  input.addEventListener('focus', focusHandler);
+  
+  // 입력 필드 포커스 해제 시 추천 목록 숨기기
+  const blurHandler = (e) => {
+    // 클릭 이벤트가 발생할 때까지 약간의 지연 (추천 항목 클릭 허용)
+    setTimeout(() => {
+      // 포커스가 추천 목록이나 입력 필드에 있지 않으면 숨기기
+      const activeElement = document.activeElement;
+      if (activeElement !== input && !suggestionsDiv.contains(activeElement)) {
+        suggestionsDiv.style.display = 'none';
+      }
+    }, 200);
+  };
+  input._eventNameBlurHandler = blurHandler;
+  input.addEventListener('blur', blurHandler);
+  
+  // 입력 필드 외부 클릭 시 추천 목록 숨기기
+  const hideHandler = (e) => {
+    if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+      suggestionsDiv.style.display = 'none';
+    }
+  };
+  suggestionsDiv._hideHandler = hideHandler;
+  document.addEventListener('click', hideHandler);
+  
+  // 포커스가 있을 때만 표시
+  if (document.activeElement === input) {
+    suggestionsDiv.style.display = 'block';
+  } else {
+    suggestionsDiv.style.display = 'none';
+  }
 }
 
 // 태그 추천 목록 로드
@@ -1053,6 +1091,21 @@ function showTagSuggestions(tags, input, suggestionsDiv) {
     return;
   }
   
+  // 기존 이벤트 리스너 제거 (중복 방지)
+  const existingHideHandler = suggestionsDiv._hideHandler;
+  const existingFocusHandler = input._tagFocusHandler;
+  const existingBlurHandler = input._tagBlurHandler;
+  
+  if (existingHideHandler) {
+    document.removeEventListener('click', existingHideHandler);
+  }
+  if (existingFocusHandler) {
+    input.removeEventListener('focus', existingFocusHandler);
+  }
+  if (existingBlurHandler) {
+    input.removeEventListener('blur', existingBlurHandler);
+  }
+  
   // 추천 제목 추가
   const title = document.createElement('div');
   title.className = 'suggestions-title';
@@ -1082,25 +1135,44 @@ function showTagSuggestions(tags, input, suggestionsDiv) {
     suggestionsDiv.appendChild(suggestionItem);
   });
   
-  suggestionsDiv.style.display = 'block';
-  
-  // 입력 필드 외부 클릭 시 추천 목록 숨기기
-  const hideHandler = function(e) {
-    if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-      suggestionsDiv.style.display = 'none';
-      document.removeEventListener('click', hideHandler);
-    }
-  };
-  setTimeout(() => {
-    document.addEventListener('click', hideHandler);
-  }, 100);
-  
   // 입력 필드 포커스 시 추천 목록 표시
-  input.addEventListener('focus', () => {
+  const focusHandler = () => {
     if (tags.length > 0) {
       suggestionsDiv.style.display = 'block';
     }
-  });
+  };
+  input._tagFocusHandler = focusHandler;
+  input.addEventListener('focus', focusHandler);
+  
+  // 입력 필드 포커스 해제 시 추천 목록 숨기기
+  const blurHandler = (e) => {
+    // 클릭 이벤트가 발생할 때까지 약간의 지연 (추천 항목 클릭 허용)
+    setTimeout(() => {
+      // 포커스가 추천 목록이나 입력 필드에 있지 않으면 숨기기
+      const activeElement = document.activeElement;
+      if (activeElement !== input && !suggestionsDiv.contains(activeElement)) {
+        suggestionsDiv.style.display = 'none';
+      }
+    }, 200);
+  };
+  input._tagBlurHandler = blurHandler;
+  input.addEventListener('blur', blurHandler);
+  
+  // 입력 필드 외부 클릭 시 추천 목록 숨기기
+  const hideHandler = (e) => {
+    if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+      suggestionsDiv.style.display = 'none';
+    }
+  };
+  suggestionsDiv._hideHandler = hideHandler;
+  document.addEventListener('click', hideHandler);
+  
+  // 포커스가 있을 때만 표시
+  if (document.activeElement === input) {
+    suggestionsDiv.style.display = 'block';
+  } else {
+    suggestionsDiv.style.display = 'none';
+  }
 }
 </script>
 {% endblock %}
