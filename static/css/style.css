@@ -911,6 +911,105 @@ h1.iu-title {
 
 
 
+/* 태그 필터 드롭다운 */
+.tag-filter-dropdown {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.tag-filter-dropdown-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 16px;
+  height: 56px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  color: var(--text-white);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.tag-filter-dropdown-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.tag-filter-label {
+  flex: 1;
+  text-align: left;
+}
+
+.tag-filter-count {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-white);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+.tag-filter-arrow {
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.tag-filter-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.tag-filter-dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.tag-filter-dropdown-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tag-filter-dropdown-menu::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.tag-filter-dropdown-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.tag-filter-dropdown-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 .tag-filter-list {
   display: flex;
   flex-direction: row;
@@ -919,28 +1018,26 @@ h1.iu-title {
   align-items: center;
   overflow: visible;
   width: 100%;
-  flex: 1;
 }
 
 .tag-filter-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--text-white);
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: 6px 12px;
+  border-radius: 20px;
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s ease;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  text-align: left;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tag-filter-btn .tag-name {
-  flex: 1;
+  flex-shrink: 0;
 }
 
 .tag-filter-btn .tag-count {
@@ -2703,10 +2800,14 @@ h1.iu-title {
     padding: 0;
   }
 
-  .gallery-tag-filter-sidebar {
-    min-height: 44px;
-    max-height: 44px;
-    padding: 6px 10px;
+  .tag-filter-dropdown-btn {
+    height: 44px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .tag-filter-dropdown-menu {
+    max-height: 300px;
   }
 
   .tag-filter-list {
