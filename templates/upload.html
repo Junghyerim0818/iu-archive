@@ -438,7 +438,7 @@ async function handleUpload() {
   
   try {
     // GCS를 사용하는 경우 presigned URL 방식 사용
-    const usePresigned = {{ 'true' if app.config.get('STORAGE_BACKEND') == 'gcs' else 'false' }};
+    const usePresigned = {{ 'true' if storage_backend == 'gcs' else 'false' }};
     
     let response;
     let result = {};

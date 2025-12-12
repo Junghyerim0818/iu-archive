@@ -924,6 +924,7 @@ def upload():
         remaining_files=remaining_files,
         remaining_size_mb=remaining_size_mb,
         max_files=MAX_FILES_PER_DAY,
+        storage_backend=app.config["STORAGE_BACKEND"],
         max_size_mb=100,
         today=date.today(),
     )
