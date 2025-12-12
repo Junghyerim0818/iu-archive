@@ -208,9 +208,10 @@ function handleFileSelect(input) {
   const validFiles = files.filter(file => file.size <= MAX_FILE_SIZE);
   const invalidFiles = files.filter(file => file.size > MAX_FILE_SIZE);
   
-  // 10MB를 넘는 파일이 있으면 알림만 표시 (선택은 계속 진행)
+  // 10MB를 넘는 파일이 있으면 경고창 표시
   if (invalidFiles.length > 0) {
-    showToast(`${invalidFiles.length}개의 파일이 10MB를 초과하여 제외되었습니다:\n${invalidFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n')}`, { type: 'warning', title: '파일 크기 초과' });
+    const fileList = invalidFiles.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n');
+    showAlert(`${invalidFiles.length}개의 파일이 10MB를 초과하여 제외되었습니다:\n\n${fileList}`, '파일 크기 초과', 'warning');
   }
   
   // 유효한 파일만 사용
@@ -789,9 +790,10 @@ fileUploadArea.addEventListener('drop', (e) => {
   const validFiles = imageFiles.filter(file => file.size <= MAX_FILE_SIZE);
   const invalidFiles = imageFiles.filter(file => file.size > MAX_FILE_SIZE);
   
-  // 10MB를 넘는 파일이 있으면 알림만 표시 (선택은 계속 진행)
+  // 10MB를 넘는 파일이 있으면 경고창 표시
   if (invalidFiles.length > 0) {
-    showToast(`${invalidFiles.length}개의 파일이 10MB를 초과하여 제외되었습니다:\n${invalidFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n')}`, { type: 'warning', title: '파일 크기 초과' });
+    const fileList = invalidFiles.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n');
+    showAlert(`${invalidFiles.length}개의 파일이 10MB를 초과하여 제외되었습니다:\n\n${fileList}`, '파일 크기 초과', 'warning');
   }
   
   // 유효한 파일만 사용
