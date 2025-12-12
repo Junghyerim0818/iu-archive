@@ -359,16 +359,24 @@
       let alertModal = null;
       let escHandler = null;
       
-      function showAlert(message, title = '알림', type = 'info') {
-        // 기존 모달이 있으면 제거
-        if (alertModal) {
+      function showAlert(message, title = '알림', type = 'info', persistent = false) {
+        // persistent가 true이고 기존 모달이 있으면 제거하지 않음 (경고창 유지)
+        if (alertModal && !persistent) {
           closeAlert();
+        }
+        
+        // persistent가 true이고 기존 모달이 있으면 새 모달을 만들지 않음
+        if (alertModal && persistent) {
+          return;
         }
         
         // 모달 재사용 (메모리 절약)
         alertModal = document.createElement('div');
         alertModal.id = 'alert-modal';
         alertModal.className = 'alert-modal';
+        if (persistent) {
+          alertModal.setAttribute('data-persistent', 'true');
+        }
         
         const safeMessage = (message || '').toString().replace(/\n/g, '<br>');
         
@@ -403,6 +411,7 @@
         const confirmBtn = alertModal.querySelector('.btn-primary');
         const closeFn = () => closeAlert();
         
+        // 백드롭 클릭으로 닫기 (항상 허용)
         backdrop.addEventListener('click', closeFn);
         confirmBtn.addEventListener('click', closeFn);
         
@@ -415,7 +424,7 @@
           }
         });
         
-        // ESC 키로 닫기 (전역 핸들러 재사용)
+        // ESC 키로 닫기 (항상 허용)
         if (escHandler) {
           document.removeEventListener('keydown', escHandler);
         }
