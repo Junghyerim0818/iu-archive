@@ -861,6 +861,28 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
     
+    // input 필드 자체에 클릭 이벤트 추가 (우선순위 높음)
+    dateInput.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // 날짜 선택기 열기
+      if (dateInput.showPicker) {
+        dateInput.showPicker();
+      } else {
+        dateInput.focus();
+      }
+    });
+    
+    // input 필드에 포커스가 갈 때도 날짜 선택기 열기
+    dateInput.addEventListener('focus', () => {
+      if (dateInput.showPicker) {
+        setTimeout(() => {
+          dateInput.showPicker();
+        }, 10);
+      }
+    });
+    
     // form-group 자체를 클릭한 경우 (빈 공간)
     dateFormGroup.addEventListener('click', (e) => {
       // 이미 다른 요소를 클릭한 경우는 제외
@@ -874,15 +896,8 @@ document.addEventListener('DOMContentLoaded', () => {
       dateInput.focus();
       
       if (dateInput.showPicker) {
-        dateInput.showPicker();
-      } else {
         setTimeout(() => {
-          const clickEvent = new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-          });
-          dateInput.dispatchEvent(clickEvent);
+          dateInput.showPicker();
         }, 10);
       }
     });
