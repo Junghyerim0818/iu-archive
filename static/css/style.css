@@ -804,7 +804,6 @@ h1.iu-title {
   border-radius: 30px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
-  margin-left: auto;
   height: 56px;
   align-items: center;
   justify-content: center;
@@ -2993,31 +2992,31 @@ h1.iu-title {
 
   .archive-stats {
     order: 1;
-    flex: 1;
+    flex: 0 0 calc(50% - 4px);
     min-width: 0;
     margin-bottom: 0;
   }
 
+  .tag-filter-dropdown {
+    order: 3;
+    flex: 0 0 calc(50% - 4px);
+    min-width: 0;
+  }
+
+  .sort-dropdown {
+    order: 4;
+    flex: 0 0 calc(50% - 4px);
+    min-width: 0;
+  }
+
   .archive-view-toggle {
-    order: 1;
-    flex: 1;
+    order: 2;
+    flex: 0 0 calc(50% - 4px);
     min-width: 0;
     margin-bottom: 0;
     padding: 6px;
     gap: 4px;
     height: 44px;
-  }
-
-  .tag-filter-dropdown {
-    order: 2;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .sort-dropdown {
-    order: 2;
-    flex: 1;
-    min-width: 0;
   }
 
   .view-toggle-btn {
