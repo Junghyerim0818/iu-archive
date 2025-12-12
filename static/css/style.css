@@ -780,7 +780,6 @@ h1.iu-title {
 .archive-wrapper {
   position: relative;
   min-height: 100vh;
-  padding-top: 5rem;
 }
 
 /* 상단 메뉴 바: 통계 + 태그 필터 + 뷰 전환 */
@@ -865,9 +864,9 @@ h1.iu-title {
 
 .archive-stat-item {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: flex-start;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
   justify-content: center;
   white-space: nowrap;
 }
@@ -1144,7 +1143,7 @@ h1.iu-title {
 /* 아카이브 날짜별 아코디언 */
 .archive-container {
   max-width: 800px;
-  margin: 5rem auto;
+  margin: auto;
 }
 
 .date-accordion {
