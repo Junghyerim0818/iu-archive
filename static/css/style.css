@@ -793,6 +793,7 @@ h1.iu-title {
   z-index: 1000;
   margin-bottom: 20px;
   padding: 0 20px;
+  flex-wrap: nowrap;
 }
 
 .archive-view-toggle {
@@ -805,11 +806,16 @@ h1.iu-title {
   border: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
   margin-left: auto;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .view-toggle-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 10px 16px;
   background: transparent;
@@ -820,6 +826,7 @@ h1.iu-title {
   transition: all 0.3s ease;
   font-size: 14px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .view-toggle-btn:hover {
@@ -838,38 +845,22 @@ h1.iu-title {
   height: 18px;
 }
 
-
-.archive-sidebar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.archive-sidebar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
-}
-
-.archive-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-.archive-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
 .archive-stats {
   display: flex;
   flex-direction: row;
   gap: 16px;
-  padding: 8px 16px;
+  padding: 0 16px;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 30px;
   font-size: 13px;
   flex-shrink: 0;
-  height: fit-content;
+  height: 56px;
   align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .archive-stat-item {
@@ -877,6 +868,8 @@ h1.iu-title {
   flex-direction: column;
   gap: 2px;
   align-items: flex-start;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .archive-stat-item .stat-label {
@@ -912,12 +905,14 @@ h1.iu-title {
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 30px;
-  padding: 8px 16px;
-  max-height: 56px; /* 뷰 전환 버튼과 같은 높이 */
+  padding: 0;
+  height: 56px; /* 모든 상단 요소와 같은 높이 */
   overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: row;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .gallery-tag-filter-sidebar::-webkit-scrollbar {
@@ -941,12 +936,14 @@ h1.iu-title {
 .tag-filter-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0;
-  padding-bottom: 0;
+  align-items: center;
+  margin: 0 12px;
+  padding: 0;
   border-bottom: none;
   white-space: nowrap;
-  flex-direction: row;
-  align-items: center;
+  height: 100%;
+  flex-shrink: 0;
+  min-width: fit-content;
 }
 
 .tag-filter-header span {
@@ -978,6 +975,9 @@ h1.iu-title {
   flex-wrap: wrap;
   align-items: center;
   overflow: visible;
+  padding: 0 12px;
+  height: 100%;
+  flex: 1;
 }
 
 .tag-filter-btn {
@@ -2701,15 +2701,15 @@ h1.iu-title {
     }
 
   .archive-view-toggle {
-    top: 10px;
-    right: 10px;
     padding: 6px;
     gap: 4px;
+    height: 44px;
   }
 
   .view-toggle-btn {
-    padding: 8px 12px;
+    padding: 6px 10px;
     font-size: 12px;
+    gap: 6px;
   }
 
   .view-toggle-btn svg {
@@ -2718,7 +2718,7 @@ h1.iu-title {
   }
 
   .view-toggle-btn span {
-    display: none;
+    display: inline;
   }
 
   .gallery-photo-grid {
@@ -2736,55 +2736,48 @@ h1.iu-title {
     padding: 0 0.5rem;
   }
 
-  .archive-layout {
-    margin-top: 5rem;
-    flex-direction: column;
-  }
-
-  .archive-content-area{
-    width: 100%;
-  }
-
-  .archive-sidebar {
-    position: relative;
-    top: auto;
-    right: auto;
-    width: 100%;
-    max-height: none;
-    margin-bottom: 1.5rem;
-    align-self: stretch;
-  }
 
   .archive-stats {
-    padding: 12px;
-    flex-direction: row;
-    justify-content: space-around;
-  }
-
-  .stat-label .stat-value{
-    font-size: 12px;
-    margin: 0 0 0 0.5rem;
-    align-items: center;
+    padding: 0 10px;
+    gap: 12px;
+    height: 44px;
+    font-size: 11px;
   }
 
   .archive-stat-item {
-    flex-direction: row;
-    align-items: center;
+    gap: 1px;
+  }
+
+  .archive-stat-item .stat-label {
+    font-size: 10px;
+  }
+
+  .archive-stat-item .stat-value {
+    font-size: 11px;
   }
 
   .gallery-tag-filter-sidebar {
-    width: 100%;
-    min-height: auto;
-    padding: 10px 16px;
+    height: 44px;
+    min-width: 0;
+  }
+
+  .tag-filter-header {
+    margin: 0 8px;
   }
 
   .tag-filter-header span {
-    font-size: 14px;
+    font-size: 12px;
+  }
+
+  .tag-filter-list {
+    padding: 0 8px;
+    gap: 4px;
   }
 
   .tag-filter-btn {
-    font-size: 12px;
-    padding: 8px 12px;
+    font-size: 11px;
+    padding: 4px 8px;
+    gap: 4px;
   }
 
   .gallery-empty-state {
