@@ -355,6 +355,9 @@ async function handleUpload() {
   const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
   const usedSize = parseInt(container.getAttribute('data-used-size')) || 0; // bytes
   
+  // 총 파일 크기 계산 (항상 계산)
+  const totalNewSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+  
   if (!isAdmin) {
     // 한 번에 선택한 파일이 20장을 초과하는 경우 즉시 차단
     if (selectedFiles.length > maxFiles) {
@@ -372,7 +375,6 @@ async function handleUpload() {
     // 파일 크기 체크
     const oversizedFiles = selectedFiles.filter(file => file.size > MAX_FILE_SIZE)
       .map(file => `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
-    const totalNewSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
     
     if (oversizedFiles.length > 0) {
       showToast(`파일 크기 초과!\n\n다음 파일이 10MB를 초과합니다:\n${oversizedFiles.join('\n')}\n\n개별 파일 최대 크기: 10MB`, { type: 'error', title: '파일 크기 초과' });
