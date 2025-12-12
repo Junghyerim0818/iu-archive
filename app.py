@@ -1003,6 +1003,7 @@ def auth_callback():
 
     user = User.query.filter_by(email=email).first()
     if not user:
+        # 새 사용자: 환경변수 기준으로 관리자 권한 설정
         user = User(
             email=email,
             name=userinfo.get("name"),
@@ -1011,9 +1012,13 @@ def auth_callback():
         )
         db.session.add(user)
     else:
+        # 기존 사용자: 이름과 사진만 업데이트
         user.name = userinfo.get("name")
         user.picture = userinfo.get("picture")
-        user.is_admin = email.lower() in admin_emails
+        # 관리자 권한은 환경변수에 이메일이 있을 때만 업데이트 (기존 권한 보호)
+        if admin_emails:  # 환경변수가 설정되어 있을 때만
+            user.is_admin = email.lower() in admin_emails
+        # 환경변수가 없으면 기존 is_admin 값 유지
     db.session.commit()
 
     session["user_id"] = user.id

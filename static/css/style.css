@@ -1391,6 +1391,11 @@ h1.iu-title {
   gap: 8px;
 }
 
+/* 날짜 입력 필드 영역 클릭 가능 */
+.form-group:has(input[type="date"]) {
+  cursor: pointer;
+}
+
 .form-group label {
   font-size: 14px;
   font-weight: 600;

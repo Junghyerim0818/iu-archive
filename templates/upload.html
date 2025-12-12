@@ -419,10 +419,10 @@ async function handleUpload() {
   const uploadStatus = document.getElementById('uploadStatus');
   
   submitBtn.disabled = true;
-  submitBtn.innerHTML = '<span>업로드 중...</span>';
+  submitBtn.innerHTML = '<span>파일 전송 중...</span>';
   progressDiv.style.display = 'block';
-  progressFill.style.width = '0%';
-  uploadStatus.textContent = '서버에 전송 중...';
+  progressFill.style.width = '10%';
+  uploadStatus.textContent = '서버에 파일 전송 중...';
   
   // 업로드 시작 플래그 설정 (페이지를 벗어나도 업로드가 계속되도록)
   let uploadInProgress = true;
@@ -462,14 +462,24 @@ async function handleUpload() {
       window.removeEventListener('beforeunload', beforeUnloadHandler);
       
       progressFill.style.width = '100%';
-      uploadStatus.textContent = '서버 전송 완료! 백그라운드에서 처리 중입니다.';
+      uploadStatus.textContent = '파일 전송 완료! 백그라운드에서 저장 중입니다.';
+      
+      // 버튼 텍스트를 "업로드 완료!"로 변경
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span>업로드 완료!</span><svg class="submit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
       
       // 성공 메시지 (페이지 새로고침 없이 파일 목록만 초기화)
       setTimeout(() => {
-        showToast(result.message || `${result.count || selectedFiles.length}개의 파일이 업로드 대기열에 추가되었습니다.\n\n페이지를 벗어나도 업로드는 계속됩니다.`, { type: 'success', title: '업로드 대기열 추가' });
+        showToast(result.message || `${result.count || selectedFiles.length}개의 파일이 업로드되었습니다.\n\n백그라운드에서 저장이 완료됩니다.`, { type: 'success', title: '업로드 완료' });
         clearFiles();
         document.getElementById('event_name').value = '';
         document.getElementById('tags').value = '';
+        
+        // 3초 후 버튼을 원래 상태로 복원
+        setTimeout(() => {
+          submitBtn.innerHTML = '<span>업로드 시작</span><svg class="submit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
+          progressDiv.style.display = 'none';
+        }, 3000);
       }, 1000);
     } else {
       uploadInProgress = false;
@@ -683,6 +693,30 @@ fileUploadArea.addEventListener('drop', (e) => {
   fileInput.files = dataTransfer.files;
   
   displayFileList();
+});
+
+// 날짜 입력 필드 영역 전체 클릭 가능하게 만들기
+document.addEventListener('DOMContentLoaded', () => {
+  const dateInput = document.getElementById('taken_date');
+  const dateFormGroup = dateInput?.closest('.form-group');
+  
+  if (dateFormGroup && dateInput) {
+    dateFormGroup.style.cursor = 'pointer';
+    
+    dateFormGroup.addEventListener('click', (e) => {
+      // input 자체를 클릭한 경우는 중복 방지
+      if (e.target === dateInput) {
+        return;
+      }
+      // input을 클릭한 것처럼 처리
+      dateInput.focus();
+      dateInput.showPicker?.(); // showPicker가 지원되는 브라우저에서
+      // showPicker가 없는 경우 클릭 이벤트 트리거
+      if (!dateInput.showPicker) {
+        dateInput.click();
+      }
+    });
+  }
 });
 </script>
 {% endblock %}
