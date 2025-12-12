@@ -2717,7 +2717,10 @@ h1.iu-title {
     padding: 0 0.5rem;
   }
 
-
+  .archive-list-view .archive-gallery-view{
+    padding: 1rem;
+  }
+  
   .archive-stats {
     padding: 0 16px;
     gap: 12px;
@@ -2965,4 +2968,5 @@ h1.iu-title {
     font-size: 16px;
   }
 }
+
 
