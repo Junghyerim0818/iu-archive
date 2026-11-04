@@ -1,0 +1,21 @@
+# 환경 변수 / 비밀 키
+.env
+.env.*
+*.json.key
+service-account*.json
+
+# 로컬 데이터
+iu_archive.db
+*.sqlite3
+uploads/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Vercel / OS
+.vercel/
+.DS_Store

@@ -99,7 +99,7 @@
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
             <p>클릭하거나 드래그하여 파일 선택</p>
-            <small>여러 파일 선택 가능, 개별 파일 최대 10MB</small>
+            <small>여러 파일 선택 가능, 개별 파일 최대 {{ max_file_mb }}MB</small>
           </div>
           <div class="file-list" id="fileList" style="display: none;">
             <div class="file-list-header">
@@ -141,6 +141,10 @@
 </div>
 
 <script>
+// 서버 설정에서 내려온 업로드 한도
+const LIMIT_FILE_MB = {{ max_file_mb|int }};
+const LIMIT_DAY_MB = {{ max_size_mb|int }};
+
 let selectedFiles = [];
 
 // showToast가 없을 때를 대비한 간단한 폴백
@@ -200,8 +204,8 @@ function handleFileSelect(input) {
   const todayCount = parseInt(container.getAttribute('data-today-count')) || 0;
   const maxFiles = parseInt(container.getAttribute('data-max-files')) || 20;
   const isAdmin = container.getAttribute('data-is-admin') === 'true';
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-  const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
+  const MAX_FILE_SIZE = LIMIT_FILE_MB * 1024 * 1024;
+  const MAX_TOTAL_SIZE = LIMIT_DAY_MB * 1024 * 1024;
   const usedSize = parseInt(container.getAttribute('data-used-size')) || 0; // bytes
   
   // 파일 크기 체크 (10MB) - 큰 파일만 필터링
@@ -211,7 +215,7 @@ function handleFileSelect(input) {
   // 10MB를 넘는 파일이 있으면 경고창 표시 (확인 전까지 유지)
   if (invalidFiles.length > 0) {
     const fileList = invalidFiles.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n');
-    showAlert(`${invalidFiles.length}개의 파일이 10MB를 초과하여 제외되었습니다:\n\n${fileList}`, '파일 크기 초과', 'warning', true);
+    showAlert(`${invalidFiles.length}개의 파일이 ${LIMIT_FILE_MB}MB를 초과하여 제외되었습니다:\n\n${fileList}`, '파일 크기 초과', 'warning', true);
   }
   
   // 유효한 파일만 사용
@@ -260,7 +264,7 @@ function handleFileSelect(input) {
     if (usedSize + totalNewSize > MAX_TOTAL_SIZE) {
       const remainingMB = (MAX_TOTAL_SIZE - usedSize) / (1024 * 1024);
       const newSizeMB = (totalNewSize / (1024 * 1024)).toFixed(2);
-      showToast(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택하려는 파일 용량: ${newSizeMB}MB\n최대 용량: 100MB\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 작은 파일을 선택하거나 내일 다시 시도해주세요.`, { type: 'error', title: '용량 한도 초과' });
+      showToast(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택하려는 파일 용량: ${newSizeMB}MB\n최대 용량: ${LIMIT_DAY_MB}MB\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 작은 파일을 선택하거나 내일 다시 시도해주세요.`, { type: 'error', title: '용량 한도 초과' });
       input.value = '';
       return;
     }
@@ -300,12 +304,18 @@ function displayFileList() {
     const fileSize = (file.size / (1024 * 1024)).toFixed(2);
     return `
       <div class="file-item">
-        <span class="file-item-name">${file.name}</span>
+        <span class="file-item-name">${escapeHtml(file.name)}</span>
         <span class="file-item-size">${fileSize} MB</span>
         <button type="button" class="file-item-remove" onclick="removeFile(${index}, event)">×</button>
       </div>
     `;
   }).join('');
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function removeFile(index, event) {
@@ -362,8 +372,8 @@ async function handleUpload() {
   const todayCount = parseInt(container.getAttribute('data-today-count')) || 0;
   const maxFiles = parseInt(container.getAttribute('data-max-files')) || 20;
   const isAdmin = container.getAttribute('data-is-admin') === 'true';
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-  const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
+  const MAX_FILE_SIZE = LIMIT_FILE_MB * 1024 * 1024;
+  const MAX_TOTAL_SIZE = LIMIT_DAY_MB * 1024 * 1024;
   const usedSize = parseInt(container.getAttribute('data-used-size')) || 0; // bytes
   
   // 총 파일 크기 계산 (항상 계산)
@@ -389,7 +399,7 @@ async function handleUpload() {
     if (oversizedFiles.length > 0) {
       // 큰 파일 제외
       selectedFiles = selectedFiles.filter(file => file.size <= MAX_FILE_SIZE);
-      showToast(`${oversizedFiles.length}개의 파일이 10MB를 초과하여 제외되었습니다:\n${oversizedFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n')}`, { type: 'warning', title: '파일 크기 초과' });
+      showToast(`${oversizedFiles.length}개의 파일이 ${LIMIT_FILE_MB}MB를 초과하여 제외되었습니다:\n${oversizedFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n')}`, { type: 'warning', title: '파일 크기 초과' });
       
       // 파일 리스트 업데이트
       const fileInput = document.getElementById('photos');
@@ -408,7 +418,7 @@ async function handleUpload() {
     if (usedSize + totalNewSize > MAX_TOTAL_SIZE) {
       const remainingMB = (MAX_TOTAL_SIZE - usedSize) / (1024 * 1024);
       const newSizeMB = (totalNewSize / (1024 * 1024)).toFixed(2);
-      showToast(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택한 파일 용량: ${newSizeMB}MB\n최대 용량: 100MB\n\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB`, { type: 'error', title: '용량 한도 초과' });
+      showToast(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n선택한 파일 용량: ${newSizeMB}MB\n최대 용량: ${LIMIT_DAY_MB}MB\n\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB`, { type: 'error', title: '용량 한도 초과' });
       return;
     }
   }
@@ -432,7 +442,7 @@ async function handleUpload() {
   if (!isAdmin) {
     const newTodayCount = todayCount + selectedFiles.length;
     const newUsedSize = usedSize + totalNewSize;
-    updateUploadStats(newTodayCount, newUsedSize, maxFiles, 100);
+    updateUploadStats(newTodayCount, newUsedSize, maxFiles, LIMIT_DAY_MB);
   }
   
   // UI 업데이트
@@ -507,7 +517,7 @@ async function handleUpload() {
       uploadStatus.textContent = 'GCS에 업로드 중...';
       progressFill.style.width = '40%';
       
-      const uploadedPaths = [];
+      const uploadedTokens = [];
       const totalFiles = presignedResult.presigned_urls.length;
       
       for (let i = 0; i < presignedResult.presigned_urls.length; i++) {
@@ -536,11 +546,7 @@ async function handleUpload() {
           throw new Error(`파일 업로드 중 오류 발생: ${file.name} - ${e.message}`);
         }
         
-        uploadedPaths.push({
-          path: presignedInfo.path,
-          filename: presignedInfo.filename,
-          size: presignedInfo.size
-        });
+        uploadedTokens.push(presignedInfo.token);
         
         // 진행률 업데이트
         const progress = 40 + (i + 1) / totalFiles * 40;
@@ -557,12 +563,7 @@ async function handleUpload() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          paths: uploadedPaths,
-          event_name: presignedResult.event_name,
-          taken_date: presignedResult.taken_date,
-          tags: presignedResult.tags
-        })
+        body: JSON.stringify({ tokens: uploadedTokens })
       });
       
       const contentType = response.headers.get('content-type');
@@ -672,7 +673,7 @@ async function handleUpload() {
       
       // 에러 발생 시 업데이트된 개수 롤백
       if (!isAdmin) {
-        updateUploadStats(todayCount, usedSize, maxFiles, 100);
+        updateUploadStats(todayCount, usedSize, maxFiles, LIMIT_DAY_MB);
       }
       
       // 경고 메시지 표시
@@ -718,7 +719,7 @@ async function handleUpload() {
       const totalNewSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
       const originalUsedSize = Math.max(0, currentUsedSize - totalNewSize);
       
-      updateUploadStats(originalTodayCount, originalUsedSize, maxFiles, 100);
+      updateUploadStats(originalTodayCount, originalUsedSize, maxFiles, LIMIT_DAY_MB);
     }
     
     showToast(errorMessage, { type: 'error', title: errorTitle });
@@ -773,8 +774,8 @@ fileUploadArea.addEventListener('drop', (e) => {
   const todayCount = parseInt(container.getAttribute('data-today-count')) || 0;
   const maxFiles = parseInt(container.getAttribute('data-max-files')) || 20;
   const isAdmin = container.getAttribute('data-is-admin') === 'true';
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-  const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
+  const MAX_FILE_SIZE = LIMIT_FILE_MB * 1024 * 1024;
+  const MAX_TOTAL_SIZE = LIMIT_DAY_MB * 1024 * 1024;
   const usedSize = parseInt(container.getAttribute('data-used-size')) || 0; // bytes
   
   const imageFiles = files.filter(file => file.type.startsWith('image/'));
@@ -793,7 +794,7 @@ fileUploadArea.addEventListener('drop', (e) => {
   // 10MB를 넘는 파일이 있으면 경고창 표시 (확인 전까지 유지)
   if (invalidFiles.length > 0) {
     const fileList = invalidFiles.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n');
-    showAlert(`${invalidFiles.length}개의 파일이 10MB를 초과하여 제외되었습니다:\n\n${fileList}`, '파일 크기 초과', 'warning', true);
+    showAlert(`${invalidFiles.length}개의 파일이 ${LIMIT_FILE_MB}MB를 초과하여 제외되었습니다:\n\n${fileList}`, '파일 크기 초과', 'warning', true);
   }
   
   // 유효한 파일만 사용
@@ -838,7 +839,7 @@ fileUploadArea.addEventListener('drop', (e) => {
     
     if (usedSize + totalNewSize > MAX_TOTAL_SIZE) {
       const remainingMB = (MAX_TOTAL_SIZE - usedSize) / (1024 * 1024);
-      showToast(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n최대 용량: 100MB\n\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 이상 파일을 추가할 수 없습니다.`, { type: 'error', title: '용량 한도 초과' });
+      showToast(`용량 한도 초과!\n\n사용한 용량: ${(usedSize / (1024 * 1024)).toFixed(2)}MB\n최대 용량: ${LIMIT_DAY_MB}MB\n\n남은 용량: ${remainingMB > 0 ? remainingMB.toFixed(2) : '0.00'}MB\n\n더 이상 파일을 추가할 수 없습니다.`, { type: 'error', title: '용량 한도 초과' });
       return;
     }
   }

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>IU Archive</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/iu.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -381,7 +382,11 @@
           alertModal.setAttribute('data-persistent', 'true');
         }
         
-        const safeMessage = (message || '').toString().replace(/\n/g, '<br>');
+        const escapeHtml = (value) => (value == null ? '' : String(value))
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const safeMessage = escapeHtml(message).replace(/\n/g, '<br>');
+        const safeTitle = escapeHtml(title);
         
         // 타입별 아이콘
         let iconSvg = '';
@@ -398,7 +403,7 @@
           <div class="alert-modal-content alert-modal-${type}">
             <div class="alert-modal-header">
               <div class="alert-modal-icon">${iconSvg}</div>
-              <h3 class="alert-modal-title">${title}</h3>
+              <h3 class="alert-modal-title">${safeTitle}</h3>
             </div>
             <div class="alert-modal-body">
               <p>${safeMessage}</p>
@@ -480,46 +485,55 @@
       }
     };
     
-    // Fetch API interceptor - 세션 만료 시 홈으로 리디렉션
+    // Fetch API interceptor
+    // - 같은 출처의 POST/PUT/DELETE 요청에 CSRF 토큰 헤더 자동 추가
+    // - 같은 출처 API의 401/403 응답만 '세션 만료'로 처리 (GCS 등 외부 요청은 건드리지 않음)
     (function() {
       const originalFetch = window.fetch;
-      
-      window.fetch = function(...args) {
-        return originalFetch.apply(this, args)
-          .then(response => {
-            // 401 (Unauthorized) 또는 403 (Forbidden) 응답 체크
-            if (response.status === 401 || response.status === 403) {
-              // JSON 응답인지 확인
-              const contentType = response.headers.get('content-type');
-              if (contentType && contentType.includes('application/json')) {
-                return response.clone().json().then(data => {
-                  // 리디렉션 URL이 있으면 사용, 없으면 홈으로
-                  const redirectUrl = data.redirect || '/';
-                  if (window.showAlert && data.error) {
-                    window.showAlert(data.error, '세션 만료', 'error');
-                  }
-                  // 약간의 지연 후 리디렉션 (사용자가 메시지를 볼 수 있도록)
-                  setTimeout(() => {
-                    window.location.href = redirectUrl;
-                  }, 1000);
-                  return Promise.reject(new Error('Session expired'));
-                }).catch(() => {
-                  // JSON 파싱 실패 시 바로 리디렉션
-                  setTimeout(() => {
-                    window.location.href = '/';
-                  }, 500);
-                  return Promise.reject(new Error('Session expired'));
-                });
-              } else {
-                // JSON이 아니면 바로 리디렉션
-                setTimeout(() => {
-                  window.location.href = '/';
-                }, 500);
-                return Promise.reject(new Error('Session expired'));
-              }
-            }
+      const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+      const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+      function isSameOrigin(input) {
+        try {
+          const url = typeof input === 'string' ? input : (input && input.url) || '';
+          return new URL(url, window.location.href).origin === window.location.origin;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      window.fetch = function(input, init) {
+        init = init || {};
+        const sameOrigin = isSameOrigin(input);
+        const method = (init.method || (input && input.method) || 'GET').toUpperCase();
+
+        if (sameOrigin && csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+          const headers = new Headers(init.headers || {});
+          if (!headers.has('X-CSRF-Token')) headers.set('X-CSRF-Token', csrfToken);
+          init = Object.assign({}, init, { headers: headers });
+        }
+
+        return originalFetch.call(this, input, init).then(response => {
+          if (!sameOrigin || (response.status !== 401 && response.status !== 403)) {
             return response;
-          });
+          }
+          const contentType = response.headers.get('content-type') || '';
+          const goHome = (url, delay) => setTimeout(() => { window.location.href = url || '/'; }, delay);
+          if (contentType.includes('application/json')) {
+            return response.clone().json().then(data => {
+              if (window.showAlert && data.error) {
+                window.showAlert(data.error, response.status === 403 ? '권한 없음' : '세션 만료', 'error');
+              }
+              goHome(data.redirect, 1000);
+              return Promise.reject(new Error('Session expired'));
+            }, () => {
+              goHome('/', 500);
+              return Promise.reject(new Error('Session expired'));
+            });
+          }
+          goHome('/', 500);
+          return Promise.reject(new Error('Session expired'));
+        });
       };
     })();
 

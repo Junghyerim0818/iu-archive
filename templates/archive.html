@@ -134,7 +134,7 @@
                               <div class="day-content" style="display: none;">
                                 {% for photo in photos %}
                                   <div class="photo-item" data-photo-id="{{ photo.id }}">
-                                    <img src="{{ file_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy">
+                                    <img src="{{ url_for('photo_image', photo_id=photo.id) }}" alt="{{ photo.event_name }}" loading="lazy">
                                     <div class="photo-info">
                                       {{ photo.event_name or '기타' }}
                                     </div>
@@ -272,6 +272,9 @@ function toggleDay(year, month, day) {
 let photosByDate = {};
 let selectedTags = [];
 let currentSort = 'random'; // 정렬 방식: random, date, downloads
+let loadedPhotos = []; // 서버가 준 순서 그대로 (랜덤/다운로드순 표시용)
+const newRandomSeed = () => Math.floor(Math.random() * 2147483646) + 1;
+let randomSeed = newRandomSeed(); // 랜덤 정렬 순서를 페이지 간에 고정 (중복/누락 방지)
 
 // 이미지 모달용 전역 변수
 let allPhotosList = []; // 모든 사진 목록 (순서대로)
@@ -344,6 +347,7 @@ function toggleSortDropdown() {
 // 정렬 변경
 function changeSort(sortType) {
   currentSort = sortType;
+  if (sortType === 'random') randomSeed = newRandomSeed();
   
   // 정렬 옵션 UI 업데이트
   document.querySelectorAll('.sort-option').forEach(option => {
@@ -376,6 +380,7 @@ function changeSort(sortType) {
   
   // 갤러리 초기화 및 재로드
   photosByDate = {};
+  loadedPhotos = [];
   currentPage = 1;
   hasMore = true;
   loadGalleryPhotos();
@@ -423,7 +428,13 @@ function loadTags() {
           const tagBtn = document.createElement('button');
           tagBtn.className = 'tag-filter-btn';
           tagBtn.setAttribute('data-tag', tag.name);
-          tagBtn.innerHTML = `<span class="tag-name">${tag.name}</span><span class="tag-count">(${tag.count})</span>`;
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'tag-name';
+          nameSpan.textContent = tag.name;
+          const countSpan = document.createElement('span');
+          countSpan.className = 'tag-count';
+          countSpan.textContent = `(${tag.count})`;
+          tagBtn.append(nameSpan, countSpan);
           tagBtn.addEventListener('click', () => filterByTag(tag.name));
           tagFilterList.appendChild(tagBtn);
         });
@@ -464,6 +475,7 @@ function filterByTag(tag) {
   
   // 갤러리 초기화 및 재로드
   photosByDate = {};
+  loadedPhotos = [];
   currentPage = 1;
   hasMore = true;
   loadGalleryPhotos();
@@ -478,6 +490,7 @@ function loadGalleryPhotos() {
   galleryEmptyState.style.display = 'none';
   
   let url = `/api/archive/photos?page=${currentPage}&per_page=50&sort=${currentSort}`;
+  if (currentSort === 'random') url += `&seed=${randomSeed}`;
   if (selectedTags.length > 0) {
     // 여러 태그를 쉼표로 구분하여 전달
     const tagsParam = selectedTags.map(tag => encodeURIComponent(tag)).join(',');
@@ -491,9 +504,11 @@ function loadGalleryPhotos() {
       if (currentPage === 1 && data.photos.length === 0) {
         galleryContainer.innerHTML = '';
         galleryEmptyState.style.display = 'block';
-        galleryEmptyState.innerHTML = selectedTags.length > 0
-          ? `<p>선택한 태그 "${selectedTags.join(', ')}"에 해당하는 사진이 없습니다.</p>`
-          : '<p>아직 승인된 사진이 없습니다.</p>';
+        const emptyText = document.createElement('p');
+        emptyText.textContent = selectedTags.length > 0
+          ? `선택한 태그 "${selectedTags.join(', ')}"에 해당하는 사진이 없습니다.`
+          : '아직 승인된 사진이 없습니다.';
+        galleryEmptyState.replaceChildren(emptyText);
         hasMore = false;
       } else if (data.photos.length > 0) {
         // 날짜별로 그룹화
@@ -505,6 +520,7 @@ function loadGalleryPhotos() {
           // 중복 방지
           if (!photosByDate[dateKey].some(p => p.id === photo.id)) {
             photosByDate[dateKey].push(photo);
+            loadedPhotos.push(photo);
           }
         });
         
@@ -544,18 +560,24 @@ function renderGallery() {
     return new Date(b) - new Date(a);
   });
   
-  sortedDates.forEach(dateKey => {
-    const photos = photosByDate[dateKey];
-    const dateLabel = formatDate(dateKey);
+  // 날짜순일 때만 날짜별로 묶고, 랜덤/다운로드순은 서버가 준 순서 그대로 보여줌
+  const groups = currentSort === 'date'
+    ? sortedDates.map(dateKey => ({ label: formatDate(dateKey), photos: photosByDate[dateKey] }))
+    : [{ label: null, photos: loadedPhotos }];
+
+  groups.forEach(group => {
+    const photos = group.photos;
     
     // 날짜 섹션 생성
     const dateSection = document.createElement('div');
     dateSection.className = 'gallery-date-section';
     
-    const dateHeader = document.createElement('div');
-    dateHeader.className = 'gallery-date-header';
-    dateHeader.textContent = dateLabel;
-    dateSection.appendChild(dateHeader);
+    if (group.label) {
+      const dateHeader = document.createElement('div');
+      dateHeader.className = 'gallery-date-header';
+      dateHeader.textContent = group.label;
+      dateSection.appendChild(dateHeader);
+    }
     
     // 사진 그리드 생성
     const photoGrid = document.createElement('div');
@@ -580,6 +602,11 @@ function renderGallery() {
       img.src = photo.url;
       img.alt = photo.event_name || '';
       img.loading = 'lazy';
+      img.onerror = () => {
+        img.onerror = null;
+        photo.url = `/photos/${photo.id}/image`;
+        img.src = photo.url;
+      };
       photoItem.appendChild(img);
       
       // 선택 표시 (체크박스)
@@ -931,36 +958,22 @@ function downloadSelectedPhotos() {
   
   // 선택된 사진들의 URL 가져오기
   const selectedPhotos = allPhotosList.filter(photo => selectedPhotoIds.has(photo.id));
-  const photoIds = Array.from(selectedPhotoIds);
   
-  // 다운로드 카운트 증가 API 호출
-  fetch('/api/archive/photos/download', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ photo_ids: photoIds })
-  }).catch(error => {
-    console.error('다운로드 카운트 증가 실패:', error);
-  });
-  
-  // 각 사진을 다운로드
+  // 각 사진을 다운로드: /photos/<id>/download 가 카운트를 올리고 첨부파일로 응답함
   selectedPhotos.forEach((photo, index) => {
     setTimeout(() => {
-      const link = document.createElement('a');
-      link.href = photo.url;
-      link.download = photo.event_name || `photo_${photo.id}.jpg`;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }, index * 100); // 순차적으로 다운로드 (100ms 간격)
+      const frame = document.createElement('iframe');
+      frame.style.display = 'none';
+      frame.src = `/photos/${photo.id}/download`;
+      document.body.appendChild(frame);
+      setTimeout(() => frame.remove(), 60000);
+    }, index * 300); // 브라우저가 연속 다운로드를 막지 않도록 간격을 둠
   });
   
   // 선택 모드 종료
   setTimeout(() => {
     exitSelectionMode();
-  }, selectedPhotos.length * 100 + 100);
+  }, selectedPhotos.length * 300 + 100);
 }
 
 // 초기 정렬 옵션 설정
