@@ -331,7 +331,8 @@
       const targets = document.querySelectorAll('.photo-item img, .photo-thumbnail img, .admin-photo img');
       targets.forEach(img => {
         img.style.cursor = 'zoom-in';
-        img.addEventListener('click', () => openImageModal(img.src, img.alt));
+        // 썸네일이면 data-full(확대용 이미지)로 열기
+        img.addEventListener('click', () => openImageModal(img.dataset.full || img.src, img.alt));
       });
     });
 

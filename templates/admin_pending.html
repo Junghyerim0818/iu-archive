@@ -6,6 +6,15 @@
     <p>업로드된 사진을 검토하고 승인 또는 거절하세요</p>
   </div>
 
+  {% if missing_derivatives %}
+    <!-- 예전 사진 썸네일 백필 -->
+    <div class="pending-count derivatives-backfill" id="derivativesBackfill">
+      <span>썸네일이 없는 사진: <strong id="missingDerivatives">{{ missing_derivatives }}</strong>개
+        <small>(조회할 때 자동으로 만들어지지만, 미리 만들어 두면 첫 로딩이 빨라집니다)</small></span>
+      <button type="button" class="btn btn-primary" id="backfillBtn">썸네일 미리 만들기</button>
+    </div>
+  {% endif %}
+
   {% if organized_photos %}
     <div class="pending-count">
       <span>대기 중인 업로드: <strong>{{ total_count }}개</strong></span>
@@ -72,21 +81,20 @@
               <div class="section-content admin-photos-container">
                 <div class="admin-photos-grid">
                 {% for photo in user_group.photos %}
-                  {% set photo_url = photo.file_url_cache if photo.file_url_cache else file_url(photo) %}
                   {% set photo_id = photo.id %}
                   <div class="admin-photo-card" data-photo-id="{{ photo_id }}" onclick="togglePhotoSelection({{ photo_id }})">
                     <div class="photo-checkbox-wrapper" onclick="event.stopPropagation()">
                       <input type="checkbox" class="photo-checkbox" id="photo_{{ photo_id }}" value="{{ photo_id }}" onchange="updateSelection()">
                       <label for="photo_{{ photo_id }}" class="photo-checkbox-label" onclick="event.stopPropagation()"></label>
                     </div>
-                    <button type="button" class="photo-zoom-btn" data-src="{{ photo_url }}" data-alt="{{ photo.event_name or '' }}" title="확대 보기">
+                    <button type="button" class="photo-zoom-btn" data-src="{{ display_url(photo) }}" data-alt="{{ photo.event_name or '' }}" title="확대 보기">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="11" cy="11" r="8"></circle>
                         <path d="m21 21-4.35-4.35"></path>
                       </svg>
                     </button>
                     <div class="admin-photo-thumbnail">
-                      <img src="{{ photo_url }}" alt="{{ photo.event_name }}" loading="lazy">
+                      <img src="{{ thumb_url(photo) }}" data-full="{{ display_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy" decoding="async">
                     </div>
                     <div class="admin-photo-info">
                       <div class="photo-info-row">
@@ -185,8 +193,37 @@ function clearSelection() {
   updateSelection();
 }
 
+// 썸네일 백필: 20개씩 반복 요청
+async function runDerivativesBackfill(btn) {
+  const counter = document.getElementById('missingDerivatives');
+  btn.disabled = true;
+  try {
+    while (true) {
+      btn.textContent = '만드는 중...';
+      const res = await fetch('/admin/derivatives', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+      counter.textContent = data.remaining;
+      if (data.remaining === 0 || data.processed === 0) {
+        const failedNote = data.failed ? `\n(${data.failed}개는 지원하지 않는 형식이라 원본으로 표시됩니다)` : '';
+        showAlert(data.remaining === 0 ? `썸네일 생성이 끝났습니다.${failedNote}` : `일부를 처리하지 못했습니다. 잠시 후 다시 시도해주세요.${failedNote}`,
+                  '썸네일', data.remaining === 0 ? 'success' : 'info');
+        break;
+      }
+    }
+  } catch (e) {
+    showAlert(`썸네일 생성 중 오류가 발생했습니다.\n${e.message}`, '썸네일', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '썸네일 미리 만들기';
+  }
+}
+
 // 페이지 로드 시 모든 사용자 섹션을 기본적으로 펼침
 document.addEventListener('DOMContentLoaded', function() {
+  const backfillBtn = document.getElementById('backfillBtn');
+  if (backfillBtn) backfillBtn.addEventListener('click', () => runDerivativesBackfill(backfillBtn));
+
   // 확대 보기 (값을 인라인 JS에 넣지 않고 data 속성에서 읽음 → XSS 방지)
   document.querySelectorAll('.photo-zoom-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {

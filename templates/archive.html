@@ -134,7 +134,7 @@
                               <div class="day-content" style="display: none;">
                                 {% for photo in photos %}
                                   <div class="photo-item" data-photo-id="{{ photo.id }}">
-                                    <img src="{{ url_for('photo_image', photo_id=photo.id) }}" alt="{{ photo.event_name }}" loading="lazy">
+                                    <img src="{{ thumb_url(photo) }}" data-full="{{ display_url(photo) }}" alt="{{ photo.event_name }}" loading="lazy" decoding="async">
                                     <div class="photo-info">
                                       {{ photo.event_name or '기타' }}
                                     </div>
@@ -206,7 +206,7 @@ function initializeListViewModel() {
       if (img) {
         const photoData = {
           id: photoItem.dataset.photoId || `list-${index}`,
-          url: img.src,
+          url: img.dataset.full || img.src,
           event_name: img.alt || '기타'
         };
         const photoIndex = listPhotos.length;
@@ -599,13 +599,14 @@ function renderGallery() {
       }
       
       const img = document.createElement('img');
-      img.src = photo.url;
+      img.src = photo.thumb_url || photo.url;
       img.alt = photo.event_name || '';
       img.loading = 'lazy';
+      img.decoding = 'async';
       img.onerror = () => {
+        // 썸네일을 못 불러오면 원본으로 대체
         img.onerror = null;
-        photo.url = `/photos/${photo.id}/image`;
-        img.src = photo.url;
+        img.src = `/photos/${photo.id}/image`;
       };
       photoItem.appendChild(img);
       

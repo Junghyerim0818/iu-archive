@@ -242,8 +242,14 @@ class FakeBlob:
         return f"https://storage.test/{self.name}?method={kwargs.get('method')}"
 
     def upload_from_string(self, data, content_type=None):
+        self.data = data
         self.size, self.content_type = len(data), content_type
         self.bucket.store[self.name] = self
+
+    def download_as_bytes(self):
+        if self.name not in self.bucket.store:
+            raise FileNotFoundError(self.name)
+        return self.data
 
     def delete(self):
         self.bucket.store.pop(self.name, None)
@@ -259,8 +265,8 @@ class FakeBucket:
     def get_blob(self, name):
         return self.store.get(name)
 
-    def put(self, name, size, content_type="image/jpeg"):
-        self.blob(name).upload_from_string(b"x" * size, content_type)
+    def put(self, name, size=None, content_type="image/jpeg", data=None):
+        self.blob(name).upload_from_string(data if data is not None else b"x" * size, content_type)
 
 
 @pytest.fixture()
@@ -356,3 +362,124 @@ def test_presigned_rejects_non_image(app_module, client, gcs):
     login(client, uid)
     resp = presign(client, [{"name": "a.html", "size": 10, "type": "text/html"}])
     assert resp.status_code == 400
+
+
+# --- 썸네일 / CDN 캐시 --------------------------------------------------------
+
+
+def real_jpeg(size=(2000, 1500)):
+    from io import BytesIO
+
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", size, (10, 120, 200)).save(buf, "JPEG")
+    return buf.getvalue()
+
+
+def write_local(tmp_path, relative_path, data):
+    f = tmp_path / "uploads" / relative_path
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_bytes(data)
+
+
+def test_local_upload_generates_derivatives(app_module, client, tmp_path):
+    import io
+
+    uid = make_user(app_module)
+    login(client, uid)
+    resp = client.post(
+        "/api/upload",
+        data={"photos": (io.BytesIO(real_jpeg()), "a.jpg", "image/jpeg")},
+        headers={"X-CSRF-Token": CSRF},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 200
+    with app_module.app.app_context():
+        photo = app_module.Photo.query.one()
+        assert photo.thumb_path and photo.display_path
+        assert (photo.width, photo.height) == (2000, 1500)
+        assert (tmp_path / "uploads" / photo.thumb_path).exists()
+
+
+def test_approved_thumb_is_publicly_cacheable_even_when_logged_in(app_module, client, tmp_path):
+    uid = make_user(app_module)
+    pid = add_photo(app_module, uid, relative_path="2024-05-01/a.jpg")
+    write_local(tmp_path, "2024-05-01/a.jpg", real_jpeg())
+    login(client, uid)  # 쿠키가 있어도 공유 캐시 가능해야 함
+
+    resp = client.get(f"/photos/{pid}/thumb?v=1")  # 첫 요청에서 지연 생성
+    assert resp.status_code == 200
+    assert resp.mimetype == "image/webp"
+    assert "public" in resp.headers["Cache-Control"] and "immutable" in resp.headers["Cache-Control"]
+    assert "Cookie" not in resp.headers.get("Vary", "")
+    assert "Set-Cookie" not in resp.headers
+    with app_module.app.app_context():
+        assert app_module.db.session.get(app_module.Photo, pid).thumb_path
+
+    resp = client.get(f"/photos/{pid}/display")
+    assert resp.status_code == 200 and resp.mimetype == "image/webp"
+
+
+def test_pending_thumb_is_private(app_module, client, tmp_path):
+    owner = make_user(app_module)
+    pid = add_photo(app_module, owner, status="pending", relative_path="2024-05-01/p.jpg")
+    write_local(tmp_path, "2024-05-01/p.jpg", real_jpeg())
+    assert client.get(f"/photos/{pid}/thumb").status_code == 404
+    login(client, owner)
+    resp = client.get(f"/photos/{pid}/thumb")
+    assert resp.status_code == 200
+    assert resp.headers["Cache-Control"].startswith("private")
+
+
+def test_unprocessable_image_falls_back_to_original_without_caching(app_module, client, tmp_path):
+    uid = make_user(app_module)
+    pid = add_photo(app_module, uid, relative_path="2024-05-01/x.heic")
+    write_local(tmp_path, "2024-05-01/x.heic", b"pretend-heic")
+    resp = client.get(f"/photos/{pid}/thumb")
+    assert resp.status_code == 200
+    assert resp.headers["Cache-Control"] == "private, no-store"
+    assert resp.data == b"pretend-heic"
+    with app_module.app.app_context():
+        assert app_module.db.session.get(app_module.Photo, pid).derive_failed is True
+
+
+def test_archive_api_does_not_sign_originals(app_module, client, gcs):
+    uid = make_user(app_module)
+    pid = add_photo(app_module, uid)
+    photo = client.get("/api/archive/photos?sort=date").get_json()["photos"][0]
+    assert photo["thumb_url"].startswith(f"/photos/{pid}/thumb")
+    assert photo["url"].startswith(f"/photos/{pid}/display")
+    assert "storage.test" not in str(photo)
+
+
+def test_gcs_complete_generates_thumbnails_and_reject_deletes_them(app_module, client, gcs):
+    admin = make_user(app_module, "admin@example.com", is_admin=True)
+    login(client, admin)
+    item = presign(client, [{"name": "a.jpg", "size": 100, "type": "image/jpeg"}]).get_json()["presigned_urls"][0]
+    gcs.put(item["path"], data=real_jpeg())
+    assert complete(client, [item["token"]]).status_code == 200
+    with app_module.app.app_context():
+        photo = app_module.Photo.query.one()
+        thumb, display, pid = photo.thumb_path, photo.display_path, photo.id
+    assert thumb in gcs.store and display in gcs.store
+    assert gcs.store[thumb].content_type == "image/webp"
+
+    client.post("/admin/pending", data={"action": "reject", "photo_id": pid, "csrf_token": CSRF})
+    assert thumb not in gcs.store and display not in gcs.store and item["path"] not in gcs.store
+
+
+def test_admin_backfill_endpoint(app_module, client, tmp_path):
+    admin = make_user(app_module, "admin@example.com", is_admin=True)
+    for i in range(3):
+        add_photo(app_module, admin, relative_path=f"2024-05-01/{i}.jpg")
+        write_local(tmp_path, f"2024-05-01/{i}.jpg", real_jpeg((600, 400)))
+    add_photo(app_module, admin, relative_path="2024-05-01/bad.jpg")
+    write_local(tmp_path, "2024-05-01/bad.jpg", b"broken")
+    login(client, admin)
+
+    assert client.get("/admin/derivatives").get_json()["remaining"] == 4
+    data = client.post("/admin/derivatives", headers={"X-CSRF-Token": CSRF}).get_json()
+    assert data == {"success": True, "processed": 4, "remaining": 0, "failed": 1}
+    html = client.get("/admin/pending").get_data(as_text=True)
+    assert 'id="backfillBtn"' not in html

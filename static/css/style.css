@@ -2606,6 +2606,22 @@ h1.iu-title {
   font-size: 18px;
 }
 
+/* 썸네일 백필 */
+.derivatives-backfill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.derivatives-backfill small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-gray);
+  font-size: 13px;
+}
+
 /* 날짜별 그룹 */
 .admin-date-groups {
   display: flex;

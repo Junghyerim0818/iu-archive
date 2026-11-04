@@ -6,8 +6,10 @@ import re
 import secrets
 import threading
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import date, datetime, time, timedelta, timezone
 from functools import wraps
+from time import monotonic
 from pathlib import Path
 from typing import Iterable, Optional
 from urllib.parse import quote
@@ -16,6 +18,7 @@ from zoneinfo import ZoneInfo
 from authlib.integrations.flask_client import OAuth
 from flask import (
     Flask,
+    Response,
     abort,
     flash,
     jsonify,
@@ -31,6 +34,8 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import func, inspect, literal, or_, text
 from sqlalchemy.pool import NullPool
 from werkzeug.utils import secure_filename
+
+from media import DERIVATIVE_VERSION, ImageProcessingError, make_derivatives
 
 try:
     from dotenv import load_dotenv
@@ -84,6 +89,9 @@ app.config.update(
     MAX_FILE_MB=int(os.getenv("MAX_FILE_MB", "10")),  # 파일 1개 최대 크기
     MAX_FILES_PER_REQUEST=int(os.getenv("MAX_FILES_PER_REQUEST", "200")),
     SIGNED_URL_HOURS=int(os.getenv("SIGNED_URL_HOURS", "6")),
+    # 썸네일 생성에 한 요청이 쓸 수 있는 최대 시간(초). 남은 건 다음 요청/백필에서 처리
+    DERIVATIVE_TIME_BUDGET=float(os.getenv("DERIVATIVE_TIME_BUDGET", "8")),
+    DERIVATIVE_WORKERS=int(os.getenv("DERIVATIVE_WORKERS", "4")),
     APP_TIMEZONE=os.getenv("APP_TIMEZONE", "Asia/Seoul"),
     STORAGE_BACKEND=os.getenv("STORAGE_BACKEND", "local"),  # local or gcs
     GCS_BUCKET=os.getenv("GCS_BUCKET"),
@@ -179,6 +187,12 @@ class Photo(db.Model):
     file_size = db.Column(db.Integer)  # 파일 크기 (bytes)
     download_count = db.Column(db.Integer, default=0)  # 다운로드 횟수
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  # UTC
+    # 파생 이미지 (WebP). 없으면 아직 생성 전
+    thumb_path = db.Column(db.String(600))  # 갤러리 썸네일
+    display_path = db.Column(db.String(600))  # 확대 보기용
+    width = db.Column(db.Integer)  # 원본 크기 (회전 보정 후)
+    height = db.Column(db.Integer)
+    derive_failed = db.Column(db.Boolean, default=False)  # 처리할 수 없는 형식 (HEIC 등) → 원본 사용
 
     user = db.relationship("User", backref="photos")
 
@@ -191,6 +205,11 @@ PHOTO_EXTRA_COLUMNS = {
     "file_size": "INTEGER",
     "tags": "VARCHAR(512)",
     "download_count": "INTEGER DEFAULT 0",
+    "thumb_path": "VARCHAR(600)",
+    "display_path": "VARCHAR(600)",
+    "width": "INTEGER",
+    "height": "INTEGER",
+    "derive_failed": "BOOLEAN DEFAULT FALSE",
 }
 PHOTO_INDEXES = {
     "ix_photo_status_taken_date": "photo (status, taken_date)",
@@ -368,6 +387,17 @@ def save_file(relative_path: str, data: bytes, content_type: str):
         file_path.write_bytes(data)
 
 
+def read_file(relative_path: str) -> bytes:
+    if use_gcs():
+        if gcs_bucket is None:
+            raise RuntimeError("GCS가 초기화되지 않았습니다.")
+        return gcs_bucket.blob(relative_path).download_as_bytes()
+    file_path = local_file_path(relative_path)
+    if file_path is None or not file_path.exists():
+        raise FileNotFoundError(relative_path)
+    return file_path.read_bytes()
+
+
 def delete_file(relative_path: str) -> bool:
     """스토리지에서 파일 삭제. 성공(또는 이미 없음) 시 True."""
     try:
@@ -397,8 +427,109 @@ def delete_file(relative_path: str) -> bool:
 
 def reject_photo(photo: Photo) -> bool:
     ok = delete_file(photo.relative_path)
+    for path in (photo.thumb_path, photo.display_path):
+        if path:
+            delete_file(path)
+    photo.thumb_path = photo.display_path = None
     photo.status = "rejected"
     return ok
+
+
+# ---------------------------------------------------------------------------
+# 파생 이미지 (썸네일 / 확대 보기용 WebP)
+# ---------------------------------------------------------------------------
+#
+# - 업로드 완료·승인 시점에 시간 예산(DERIVATIVE_TIME_BUDGET) 안에서 생성
+# - 못 만든 건 /photos/<id>/thumb 를 처음 요청할 때 생성 (예전 사진도 자동으로 채워짐)
+# - 승인된 사진의 파생 이미지는 고정 URL + `Cache-Control: public, immutable` 로 내려가
+#   Vercel CDN과 브라우저에 캐시됨 → 함수 호출/GCS 전송은 사진당 사실상 한 번
+
+VARIANT_COLUMNS = {"thumb": "thumb_path", "display": "display_path"}
+PUBLIC_IMMUTABLE = "public, max-age=31536000, s-maxage=31536000, immutable"
+_derive_executor = ThreadPoolExecutor(max_workers=app.config["DERIVATIVE_WORKERS"])
+
+
+def derivative_path(relative_path: str, kind: str) -> str:
+    return f"derived/v{DERIVATIVE_VERSION}/{kind}/{relative_path}.webp"
+
+
+def _derive_job(relative_path: str, data: Optional[bytes]) -> dict:
+    """(스레드에서 실행) 원본을 읽어 파생 이미지를 만들고 저장. DB는 건드리지 않음."""
+    result = make_derivatives(data if data is not None else read_file(relative_path))
+    paths = {}
+    for kind, content in result.files.items():
+        path = derivative_path(relative_path, kind)
+        save_file(path, content, "image/webp")
+        paths[VARIANT_COLUMNS[kind]] = path
+    return {**paths, "width": result.width, "height": result.height}
+
+
+def needs_derivatives(photo: Photo) -> bool:
+    return photo.status != "rejected" and not photo.thumb_path and not photo.derive_failed
+
+
+def generate_derivatives(photos: Iterable[Photo], budget: Optional[float] = None,
+                         data_by_path: Optional[dict] = None) -> int:
+    """시간 예산 안에서 파생 이미지를 만들고 DB에 반영. 처리(성공+영구 실패)한 개수를 반환."""
+    targets = [p for p in photos if needs_derivatives(p)]
+    if not targets:
+        return 0
+    budget = app.config["DERIVATIVE_TIME_BUDGET"] if budget is None else budget
+    data_by_path = data_by_path or {}
+    futures = {
+        _derive_executor.submit(_derive_job, p.relative_path, data_by_path.get(p.relative_path)): p
+        for p in targets
+    }
+    done, not_done = wait(futures, timeout=budget)
+    handled = 0
+    for future in done:
+        photo = futures[future]
+        exc = future.exception()
+        if exc is None:
+            for key, value in future.result().items():
+                setattr(photo, key, value)
+            photo.derive_failed = False
+            handled += 1
+        elif isinstance(exc, ImageProcessingError):
+            app.logger.warning(f"파생 이미지 생성 불가 (photo {photo.id}): {exc}")
+            photo.derive_failed = True
+            handled += 1
+        else:
+            # 네트워크 오류 등 일시적인 문제 → 다음에 다시 시도
+            app.logger.error(f"파생 이미지 생성 실패 (photo {photo.id}): {exc}")
+    if not_done:
+        app.logger.info(f"파생 이미지 {len(not_done)}개는 시간 예산 초과로 다음에 처리")
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        app.logger.error(f"파생 이미지 정보 저장 실패: {exc}")
+        return 0
+    return handled
+
+
+def safe_generate_derivatives(photos, **kwargs) -> int:
+    """업로드/승인 흐름을 절대 깨뜨리지 않도록 감싼 버전."""
+    try:
+        return generate_derivatives(photos, **kwargs)
+    except Exception as exc:
+        db.session.rollback()
+        app.logger.error(f"파생 이미지 생성 중 오류: {exc}", exc_info=True)
+        return 0
+
+
+def variant_url(photo: Photo, kind: str) -> str:
+    if photo.status == "rejected":
+        return REJECTED_PLACEHOLDER
+    return url_for("photo_variant", photo_id=photo.id, kind=kind, v=DERIVATIVE_VERSION)
+
+
+def missing_derivatives_query():
+    return Photo.query.filter(
+        Photo.status != "rejected",
+        Photo.thumb_path.is_(None),
+        or_(Photo.derive_failed.is_(None), Photo.derive_failed.is_(False)),
+    )
 
 
 def signed_url(relative_path: str, method: str = "GET", **kwargs) -> str:
@@ -509,7 +640,12 @@ def csrf_protect():
 
 @app.context_processor
 def inject_helpers():
-    return {"file_url": build_file_url, "csrf_token": get_csrf_token}
+    return {
+        "file_url": build_file_url,
+        "thumb_url": lambda photo: variant_url(photo, "thumb"),
+        "display_url": lambda photo: variant_url(photo, "display"),
+        "csrf_token": get_csrf_token,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -677,6 +813,9 @@ def admin_pending():
             elif not reject_photo(photo):
                 failed_deletes += 1
         db.session.commit()
+        if action in ("approve", "batch_approve"):
+            # 업로드 때 못 만든 썸네일이 있으면 승인하면서 채움 (남은 건 첫 조회 때 생성)
+            safe_generate_derivatives(photos)
 
         verb = "승인" if action in ("approve", "batch_approve") else "거절"
         flash(f"{len(photos)}개의 사진이 {verb}되었습니다.", "success")
@@ -693,7 +832,6 @@ def admin_pending():
     # 업로드 날짜(서비스 시간대 기준)별 > 사용자별 그룹화
     photos_by_date = defaultdict(lambda: defaultdict(list))
     for photo in pending_photos:
-        photo.file_url_cache = build_file_url(photo)
         photos_by_date[to_local_date(photo.created_at)][photo.user_id].append(photo)
 
     organized_photos = []
@@ -710,7 +848,38 @@ def admin_pending():
         organized_photos=organized_photos,
         total_count=len(pending_photos),
         user=current_user(),
+        missing_derivatives=missing_derivatives_query().count(),
     )
+
+
+@app.route("/admin/derivatives", methods=["GET", "POST"])
+@admin_required
+def admin_derivatives():
+    """썸네일이 없는 사진(예전 사진)을 조금씩 채우는 백필. POST 한 번에 최대 20개."""
+    processed = 0
+    if request.method == "POST":
+        batch = missing_derivatives_query().order_by(Photo.id).limit(20).all()
+        processed = generate_derivatives(batch)
+    return jsonify({
+        "success": True,
+        "processed": processed,
+        "remaining": missing_derivatives_query().count(),
+        "failed": Photo.query.filter(Photo.derive_failed.is_(True), Photo.status != "rejected").count(),
+    })
+
+
+@app.cli.command("backfill-derivatives")
+def backfill_derivatives_command():
+    """flask --app app backfill-derivatives : 썸네일이 없는 모든 사진 처리"""
+    ensure_schema()
+    while True:
+        batch = missing_derivatives_query().order_by(Photo.id).limit(50).all()
+        if not batch:
+            break
+        handled = generate_derivatives(batch, budget=600)
+        print(f"처리 {handled}개, 남은 {missing_derivatives_query().count()}개")
+        if handled == 0:
+            break
 
 
 def to_local_date(value: Optional[datetime]) -> date:
@@ -727,7 +896,6 @@ def profile():
 
     photos_by_date = defaultdict(list)
     for photo in my_photos:
-        photo.file_url_cache = build_file_url(photo)
         photos_by_date[to_local_date(photo.created_at)].append(photo)
 
     organized_photos = [
@@ -768,6 +936,52 @@ def photo_image(photo_id):
         resp.headers["Cache-Control"] = "private, max-age=1800"
         return resp
     return send_from_directory(ensure_upload_folder(), photo.relative_path)
+
+
+def original_response(photo: Photo):
+    """파생 이미지를 쓸 수 없을 때 원본으로 대체 (캐시 금지: 서명 URL은 만료됨)."""
+    if use_gcs():
+        if gcs_bucket is None:
+            abort(503)
+        resp = redirect(signed_url(photo.relative_path))
+    else:
+        resp = send_from_directory(ensure_upload_folder(), photo.relative_path)
+    resp.headers["Cache-Control"] = "private, no-store"
+    return resp
+
+
+@app.route("/photos/<int:photo_id>/<any(thumb, display):kind>")
+def photo_variant(photo_id, kind):
+    """썸네일/확대 이미지 (WebP).
+
+    승인된 사진은 세션을 전혀 읽지 않고 public/immutable 로 응답한다.
+    (세션을 읽으면 Flask가 `Vary: Cookie`를 붙여 CDN이 사용자마다 따로 캐시하게 됨)
+    """
+    photo = db.session.get(Photo, photo_id)
+    if photo is None or photo.status == "rejected":
+        abort(404)
+    is_public = photo.status == "approved"
+    if not is_public and not can_view_photo(photo, current_user()):
+        abort(404)
+
+    if needs_derivatives(photo):
+        safe_generate_derivatives([photo])
+
+    path = getattr(photo, VARIANT_COLUMNS[kind])
+    if not path:
+        return original_response(photo)
+    try:
+        data = read_file(path)
+    except Exception as exc:
+        # 파생 파일이 사라졌으면 다음 요청에서 다시 만들도록 초기화
+        app.logger.warning(f"파생 이미지 읽기 실패 ({path}): {exc}")
+        photo.thumb_path = photo.display_path = None
+        db.session.commit()
+        return original_response(photo)
+
+    resp = Response(data, mimetype="image/webp")
+    resp.headers["Cache-Control"] = PUBLIC_IMMUTABLE if is_public else "private, max-age=3600"
+    return resp
 
 
 @app.route("/photos/<int:photo_id>/download")
@@ -850,7 +1064,10 @@ def api_archive_photos():
         "photos": [
             {
                 "id": photo.id,
-                "url": build_file_url(photo),
+                "url": variant_url(photo, "display"),  # 확대 보기용
+                "thumb_url": variant_url(photo, "thumb"),  # 갤러리 그리드용
+                "width": photo.width,
+                "height": photo.height,
                 "event_name": photo.event_name or "기타",
                 "taken_date": photo.taken_date.isoformat() if photo.taken_date else None,
                 "tags": split_tags(photo.tags),
@@ -1079,6 +1296,8 @@ def api_upload_complete():
     if accepted:
         db.session.add_all(accepted)
         db.session.commit()
+        # 관리자 화면이 원본 대신 가벼운 썸네일을 보도록 바로 생성 (시간 예산 내에서만)
+        safe_generate_derivatives(accepted)
 
     if not accepted:
         return json_error(
@@ -1128,12 +1347,15 @@ def api_upload():
 
     base_ts = datetime.utcnow()
     saved_paths = []
+    new_photos = []
+    data_by_path = {}
     try:
         for idx, (name, data, content_type) in enumerate(file_items):
             relative_path = make_relative_path(taken_date_value, name, idx, base_ts)
             save_file(relative_path, data, content_type)
             saved_paths.append(relative_path)
-            db.session.add(Photo(
+            data_by_path[relative_path] = data
+            new_photos.append(Photo(
                 user_id=user.id,
                 relative_path=relative_path,
                 original_name=name[:255],
@@ -1143,6 +1365,7 @@ def api_upload():
                 status="pending",
                 file_size=len(data),
             ))
+        db.session.add_all(new_photos)
         db.session.commit()
     except Exception as exc:
         db.session.rollback()
@@ -1150,6 +1373,8 @@ def api_upload():
             delete_file(path)
         app.logger.error(f"업로드 실패: {exc}", exc_info=True)
         return json_error("파일 저장 중 오류가 발생했습니다.", 500)
+
+    safe_generate_derivatives(new_photos, data_by_path=data_by_path)
 
     return jsonify({
         "success": True,
