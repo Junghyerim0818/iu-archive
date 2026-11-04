@@ -36,9 +36,9 @@ Flask + SQLAlchemy 기반 사진 아카이브. Vercel(서버리스)에 배포하
   Vercel CDN과 브라우저에 캐시됩니다. 서버 함수와 GCS는 (배포별) 캐시 미스 때만 호출됩니다.
   이 응답에서는 세션을 읽지 않아 `Vary: Cookie`/`Set-Cookie`가 붙지 않습니다.
 - 승인 전 사진은 `private` 로만 응답합니다.
-- 업로드는 썸네일을 확실히 만들 수 있는 **JPG / PNG / WebP / GIF만** 허용합니다.
-  브라우저가 보낸 Content-Type이 아니라 파일 앞부분(매직 넘버)으로 서버에서 다시 검사하며, HEIC는 변환 안내 메시지와 함께 거부합니다.
-  (아이폰 Safari는 사진 앱에서 고를 때 보통 JPG로 자동 변환해 올립니다)
+- 업로드는 **JPG / PNG / WebP / GIF / HEIC**만 허용합니다. 브라우저가 보낸 타입이 아니라 파일 앞부분(매직 넘버)으로 서버에서 다시 검사합니다.
+- **HEIC는 서버에서 JPG(품질 90)로 변환**해 원본으로 보관하고 HEIC 파일은 지웁니다. 다운로드도 JPG로 나갑니다.
+  변환한 JPG에는 EXIF(GPS 위치 등)를 넣지 않고, 색 정보(ICC 프로파일)는 유지합니다. (`pillow-heif` 사용)
 - 그래도 손상된 파일 등으로 변환에 실패하면 `derive_failed`로 표시되고 원본으로 대체됩니다.
 - 기존 사진은 관리자 화면의 **썸네일 미리 만들기** 버튼이나 `flask --app app backfill-derivatives`로 미리 만들 수 있습니다.
 - 썸네일 규칙을 바꾸면 `media.py`의 `DERIVATIVE_VERSION`을 올리세요. 경로/URL이 바뀌어 캐시가 자연스럽게 갱신됩니다.

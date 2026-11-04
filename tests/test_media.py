@@ -78,7 +78,32 @@ def test_sniff_heic_avif_and_unknown():
     assert sniff_image_format(b"") is None
 
 
-def test_unsupported_reason_mentions_heic_only_for_heic():
-    assert "HEIC" in unsupported_reason("heic")
-    assert "HEIC" in unsupported_reason(name="IMG_1.HEIF")
-    assert "HEIC" not in unsupported_reason(None, "a.bmp", "image/bmp")
+def test_heic_is_converted_to_jpeg_without_exif():
+    import pillow_heif  # noqa: F401
+
+    img = Image.new("RGB", (1600, 1200), (30, 160, 60))
+    exif = Image.Exif()
+    exif[0x8825] = {1: "N", 2: (37.0, 33.0, 0.0)}
+    buf = BytesIO()
+    img.save(buf, "HEIF", quality=80, exif=exif.tobytes())
+
+    result = make_derivatives(buf.getvalue())
+    assert (result.width, result.height) == (1600, 1200)
+    jpg = Image.open(BytesIO(result.converted_jpeg))
+    assert jpg.format == "JPEG" and jpg.size == (1600, 1200)
+    assert len(jpg.getexif()) == 0
+    assert min(open_webp(result.files["thumb"]).size) == 480
+
+
+def test_non_heic_has_no_converted_copy():
+    assert make_derivatives(jpeg_bytes((800, 600))).converted_jpeg is None
+
+
+def test_large_jpeg_reports_original_size_even_with_draft_decoding():
+    # draft 디코딩으로 축소해서 읽어도 원본 크기를 기록해야 함
+    result = make_derivatives(jpeg_bytes((8000, 6000)))
+    assert (result.width, result.height) == (8000, 6000)
+
+
+def test_unsupported_reason():
+    assert "JPG" in unsupported_reason(None, "a.bmp", "image/bmp")

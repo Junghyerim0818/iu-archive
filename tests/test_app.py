@@ -491,44 +491,107 @@ def test_admin_backfill_endpoint(app_module, client, tmp_path):
     assert 'id="backfillBtn"' not in html
 
 
-# --- 업로드 형식 제한 (썸네일을 만들 수 있는 형식만) ----------------------------
+# --- 업로드 형식: JPG/PNG/WebP/GIF + HEIC(서버에서 JPG로 변환) -------------------
 
 
-def test_local_upload_rejects_heic_even_if_named_jpg(app_module, client):
+def real_heic(size=(1200, 900), gps=True):
+    from io import BytesIO
+
+    import pillow_heif  # noqa: F401  (opener 등록은 media 모듈이 함)
+    from PIL import Image
+
+    img = Image.new("RGB", size, (220, 40, 90))
+    exif = Image.Exif()
+    if gps:
+        exif[0x8825] = {1: "N", 2: (37.0, 33.0, 0.0)}  # GPSInfo
+    buf = BytesIO()
+    img.save(buf, "HEIF", quality=80, exif=exif.tobytes())
+    return buf.getvalue()
+
+
+def test_local_upload_converts_heic_to_jpeg(app_module, client, tmp_path):
+    import io
+
+    from PIL import Image
+
+    uid = make_user(app_module)
+    login(client, uid)
+    # Windows 브라우저처럼 타입이 비어 있어도 내용으로 판별
+    resp = client.post(
+        "/api/upload",
+        data={"photos": (io.BytesIO(real_heic()), "IMG_0001.HEIC", "application/octet-stream")},
+        headers={"X-CSRF-Token": CSRF},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 200, resp.get_json()
+    with app_module.app.app_context():
+        photo = app_module.Photo.query.one()
+        assert photo.relative_path.endswith(".jpg")
+        assert photo.original_name == "IMG_0001.HEIC"
+        assert (photo.width, photo.height) == (1200, 900)
+        assert photo.thumb_path and photo.display_path
+        converted = tmp_path / "uploads" / photo.relative_path
+        assert photo.file_size == converted.stat().st_size
+    jpg = Image.open(converted)
+    assert jpg.format == "JPEG" and jpg.size == (1200, 900)
+    assert 0x8825 not in jpg.getexif()  # GPS 위치 정보 제거
+    assert not list((tmp_path / "uploads").rglob("*.HEIC"))  # 원본 HEIC는 삭제
+
+
+def test_unsupported_format_is_still_rejected(app_module, client):
     import io
 
     uid = make_user(app_module)
     login(client, uid)
     resp = client.post(
         "/api/upload",
-        data={"photos": (io.BytesIO(HEIC_HEAD + b"x" * 100), "IMG_0001.jpg", "image/jpeg")},
+        data={"photos": (io.BytesIO(b"BM" + b"\x00" * 60), "a.bmp", "image/bmp")},
         headers={"X-CSRF-Token": CSRF},
         content_type="multipart/form-data",
     )
     assert resp.status_code == 400
-    body = resp.get_json()
-    assert body["error_type"] == "invalid_type" and "HEIC" in body["error"]
-    with app_module.app.app_context():
-        assert app_module.Photo.query.count() == 0
+    assert resp.get_json()["error_type"] == "invalid_type"
 
 
-def test_presigned_rejects_heic_type_with_guide(app_module, client, gcs):
+def test_presigned_accepts_heic_and_infers_type_from_extension(app_module, client, gcs):
     uid = make_user(app_module)
     login(client, uid)
-    resp = presign(client, [{"name": "IMG_0001.HEIC", "size": 10, "type": "image/heic"}])
-    assert resp.status_code == 400
-    assert "HEIC" in resp.get_json()["error"]
+    resp = presign(client, [{"name": "IMG_0001.HEIC", "size": 10, "type": ""}])
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()["presigned_urls"][0]["content_type"] == "image/heic"
 
 
-def test_complete_rejects_heic_content_disguised_as_jpeg(app_module, client, gcs):
+def test_gcs_heic_is_converted_and_original_removed(app_module, client, gcs):
+    uid = make_user(app_module)
+    login(client, uid)
+    item = presign(client, [{"name": "IMG.HEIC", "size": 100, "type": "image/heic"}]).get_json()["presigned_urls"][0]
+    gcs.put(item["path"], data=real_heic(), content_type="image/heic")
+    assert complete(client, [item["token"]]).status_code == 200
+    with app_module.app.app_context():
+        photo = app_module.Photo.query.one()
+        assert photo.relative_path.endswith(".jpg")
+        assert gcs.store[photo.relative_path].content_type == "image/jpeg"
+        assert photo.thumb_path in gcs.store
+    assert item["path"] not in gcs.store
+
+
+def test_complete_rejects_content_that_is_not_an_image(app_module, client, gcs):
     uid = make_user(app_module)
     login(client, uid)
     item = presign(client, [{"name": "a.jpg", "size": 100, "type": "image/jpeg"}]).get_json()["presigned_urls"][0]
-    gcs.put(item["path"], data=HEIC_HEAD + b"x" * 100, content_type="image/jpeg")
-    resp = complete(client, [item["token"]])
-    assert resp.status_code == 400
-    assert "HEIC" in resp.get_json()["error"]
+    gcs.put(item["path"], data=b"<html>not an image</html>", content_type="image/jpeg")
+    assert complete(client, [item["token"]]).status_code == 400
     assert item["path"] not in gcs.store
+
+
+def test_download_converts_pending_heic_first(app_module, client, tmp_path):
+    uid = make_user(app_module)
+    pid = add_photo(app_module, uid, relative_path="2024-05-01/x.heic")
+    write_local(tmp_path, "2024-05-01/x.heic", real_heic(gps=False))
+    resp = client.get(f"/photos/{pid}/download")
+    assert resp.status_code == 200
+    assert ".jpg" in resp.headers["Content-Disposition"]
+    assert resp.data[:3] == b"\xff\xd8\xff"
 
 
 def test_upload_page_accept_attribute_lists_only_supported_types(app_module, client):
@@ -536,5 +599,5 @@ def test_upload_page_accept_attribute_lists_only_supported_types(app_module, cli
     login(client, uid)
     html = client.get("/upload").get_data(as_text=True)
     assert 'accept="image/*"' not in html
-    assert "image/heic" not in html
-    assert "image/webp" in html and ".jpg" in html
+    assert "image/heic" in html and ".heic" in html and "image/webp" in html
+    assert "image/bmp" not in html

@@ -6,6 +6,15 @@ from typing import Optional
 
 from PIL import Image, ImageOps
 
+try:
+    # HEIC(아이폰 고효율 사진) 디코딩 지원
+    from pillow_heif import register_heif_opener
+
+    register_heif_opener()
+    HEIF_SUPPORTED = True
+except ImportError:  # pragma: no cover - 의존성이 없으면 HEIC만 거부
+    HEIF_SUPPORTED = False
+
 # 압축 폭탄 방지: 이 픽셀 수를 넘는 이미지는 처리하지 않음 (약 8000x10000)
 Image.MAX_IMAGE_PIXELS = 80_000_000
 
@@ -21,13 +30,18 @@ VARIANTS = {
 }
 
 
-# 업로드 허용 형식 = 썸네일을 확실히 만들 수 있는 형식
-SUPPORTED_FORMATS = ("jpeg", "png", "webp", "gif")
-SUPPORTED_MIME_TYPES = {"image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp", "image/gif"}
-SUPPORTED_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+# 업로드 허용 형식 = 썸네일을 확실히 만들 수 있는 형식 (HEIC는 서버에서 JPG로 변환해 보관)
+SUPPORTED_FORMATS = ("jpeg", "png", "webp", "gif") + (("heic",) if HEIF_SUPPORTED else ())
+SUPPORTED_MIME_TYPES = {"image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp", "image/gif"} | (
+    {"image/heic", "image/heif"} if HEIF_SUPPORTED else set()
+)
+SUPPORTED_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif") + ((".heic", ".heif") if HEIF_SUPPORTED else ())
 SNIFF_BYTES = 32  # 형식 판별에 필요한 파일 앞부분 길이
+CONVERTED_JPEG_QUALITY = 90
 
-UNSUPPORTED_MESSAGE = "JPG, PNG, WebP, GIF 파일만 업로드할 수 있어요."
+UNSUPPORTED_MESSAGE = (
+    "JPG, PNG, WebP, GIF" + (", HEIC" if HEIF_SUPPORTED else "") + " 파일만 업로드할 수 있어요."
+)
 HEIC_MESSAGE = (
     "HEIC(아이폰 고효율 사진) 파일은 지원하지 않아요. JPG로 변환해서 올려주세요. "
     "(아이폰 설정 > 카메라 > 포맷 > '높은 호환성'으로 바꾸면 처음부터 JPG로 저장돼요)"
@@ -58,7 +72,9 @@ def sniff_image_format(head: bytes) -> Optional[str]:
 
 def unsupported_reason(fmt: Optional[str] = None, name: str = "", content_type: str = "") -> str:
     hint = f"{fmt or ''} {name} {content_type}".lower()
-    return HEIC_MESSAGE if ("heic" in hint or "heif" in hint) else UNSUPPORTED_MESSAGE
+    if not HEIF_SUPPORTED and ("heic" in hint or "heif" in hint):
+        return HEIC_MESSAGE
+    return UNSUPPORTED_MESSAGE
 
 
 class ImageProcessingError(Exception):
@@ -70,6 +86,7 @@ class Derivatives:
     width: int  # 원본(회전 보정 후) 크기
     height: int
     files: dict  # kind -> WebP bytes
+    converted_jpeg: Optional[bytes] = None  # HEIC 원본을 대신할 JPG (그 외 형식은 None)
 
 
 def _target_size(width: int, height: int, short_side, long_max) -> tuple[int, int]:
@@ -81,26 +98,45 @@ def _target_size(width: int, height: int, short_side, long_max) -> tuple[int, in
 
 
 def make_derivatives(data: bytes) -> Derivatives:
-    """이미지 바이트 → 썸네일/화면용 WebP. 열 수 없는 형식(HEIC 등)이면 ImageProcessingError."""
+    """이미지 바이트 → 썸네일/화면용 WebP (+ HEIC면 원본 대체용 JPG).
+
+    열 수 없는 파일이면 ImageProcessingError.
+    """
+    fmt = sniff_image_format(data[:SNIFF_BYTES])
     try:
         with Image.open(BytesIO(data)) as img:
-            # JPEG는 필요한 크기만큼만 디코딩 (큰 사진에서 수 배 빠르고 메모리도 적게 씀)
-            longest_needed = max(v[1] for v in VARIANTS.values())
-            img.draft("RGB", (longest_needed, longest_needed))
-            img = ImageOps.exif_transpose(img)  # 휴대폰 사진 회전 정보 반영
+            # 원본 크기 (EXIF 회전이 있으면 가로/세로가 바뀜)
             width, height = img.size
+            if img.getexif().get(0x0112) in (5, 6, 7, 8):
+                width, height = height, width
+            icc_profile = img.info.get("icc_profile")  # 아이폰 Display P3 등 색 정보 유지
+
+            if fmt == "jpeg":
+                # 필요한 크기만큼만 디코딩 (큰 사진에서 수 배 빠르고 메모리도 적게 씀)
+                longest_needed = max(v[1] for v in VARIANTS.values())
+                img.draft("RGB", (longest_needed, longest_needed))
+            img = ImageOps.exif_transpose(img)  # 휴대폰 사진 회전 정보 반영
 
             has_alpha = img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
             img = img.convert("RGBA" if has_alpha else "RGB")
+
+            converted_jpeg = None
+            if fmt == "heic":
+                # EXIF(GPS 위치 등)는 넣지 않음. 회전은 이미 픽셀에 반영됨
+                buf = BytesIO()
+                img.convert("RGB").save(
+                    buf, "JPEG", quality=CONVERTED_JPEG_QUALITY, progressive=True, icc_profile=icc_profile
+                )
+                converted_jpeg = buf.getvalue()
 
             files = {}
             for kind, (short_side, long_max, quality) in VARIANTS.items():
                 size = _target_size(img.width, img.height, short_side, long_max)
                 resized = img if size == img.size else img.resize(size, Image.LANCZOS)
                 buf = BytesIO()
-                resized.save(buf, "WEBP", quality=quality, method=4)
+                resized.save(buf, "WEBP", quality=quality, method=4, icc_profile=icc_profile)
                 files[kind] = buf.getvalue()
-            return Derivatives(width=width, height=height, files=files)
+            return Derivatives(width=width, height=height, files=files, converted_jpeg=converted_jpeg)
     except Image.DecompressionBombError as exc:
         raise ImageProcessingError(f"이미지가 너무 큽니다: {exc}") from exc
     except (OSError, ValueError, SyntaxError) as exc:

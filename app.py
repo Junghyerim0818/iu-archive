@@ -467,15 +467,40 @@ def derivative_path(relative_path: str, kind: str) -> str:
     return f"derived/v{DERIVATIVE_VERSION}/{kind}/{relative_path}.webp"
 
 
+EXTENSION_MIME_TYPES = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
+    ".gif": "image/gif", ".heic": "image/heic", ".heif": "image/heif",
+}
+SNIFFED_MIME_TYPES = {
+    "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp", "gif": "image/gif", "heic": "image/heic",
+}
+
+
+def converted_path(relative_path: str) -> str:
+    """HEIC 원본을 대신할 JPG 경로 (원본 경로와 절대 겹치지 않게)."""
+    stem, dot, ext = relative_path.rpartition(".")
+    candidate = f"{stem}.jpg" if dot and "/" not in ext else f"{relative_path}.jpg"
+    return candidate if candidate != relative_path else f"{stem}_converted.jpg"
+
+
 def _derive_job(relative_path: str, data: Optional[bytes]) -> dict:
-    """(스레드에서 실행) 원본을 읽어 파생 이미지를 만들고 저장. DB는 건드리지 않음."""
+    """(스레드에서 실행) 원본을 읽어 파생 이미지를 만들고 저장. DB는 건드리지 않음.
+
+    HEIC면 JPG로 변환한 파일을 새 원본으로 저장하고, 예전 HEIC 경로는 `_replaced`로 돌려준다
+    (DB 반영이 끝난 뒤에 지움).
+    """
     result = make_derivatives(data if data is not None else read_file(relative_path))
-    paths = {}
+    updates = {"width": result.width, "height": result.height}
+    source_path = relative_path
+    if result.converted_jpeg is not None:
+        source_path = converted_path(relative_path)
+        save_file(source_path, result.converted_jpeg, "image/jpeg")
+        updates.update(relative_path=source_path, file_size=len(result.converted_jpeg), _replaced=relative_path)
     for kind, content in result.files.items():
-        path = derivative_path(relative_path, kind)
+        path = derivative_path(source_path, kind)
         save_file(path, content, "image/webp")
-        paths[VARIANT_COLUMNS[kind]] = path
-    return {**paths, "width": result.width, "height": result.height}
+        updates[VARIANT_COLUMNS[kind]] = path
+    return updates
 
 
 def needs_derivatives(photo: Photo) -> bool:
@@ -496,11 +521,15 @@ def generate_derivatives(photos: Iterable[Photo], budget: Optional[float] = None
     }
     done, not_done = wait(futures, timeout=budget)
     handled = 0
+    replaced_paths = []
     for future in done:
         photo = futures[future]
         exc = future.exception()
         if exc is None:
-            for key, value in future.result().items():
+            updates = dict(future.result())
+            if "_replaced" in updates:
+                replaced_paths.append(updates.pop("_replaced"))
+            for key, value in updates.items():
                 setattr(photo, key, value)
             photo.derive_failed = False
             handled += 1
@@ -519,6 +548,9 @@ def generate_derivatives(photos: Iterable[Photo], budget: Optional[float] = None
         db.session.rollback()
         app.logger.error(f"파생 이미지 정보 저장 실패: {exc}")
         return 0
+    # DB가 JPG를 가리키게 된 뒤에야 예전 HEIC 원본을 지움
+    for path in replaced_paths:
+        delete_file(path)
     return handled
 
 
@@ -794,6 +826,7 @@ def upload():
         max_size_mb=app.config["DAILY_UPLOAD_MB"],
         max_file_mb=app.config["MAX_FILE_MB"],
         accept_types=",".join(sorted(SUPPORTED_MIME_TYPES) + list(SUPPORTED_EXTENSIONS)),
+        supported_label=" · ".join(f.upper() if f != "jpeg" else "JPG" for f in SUPPORTED_FORMATS),
         today=local_today(),
     )
 
@@ -1016,6 +1049,10 @@ def photo_download(photo_id):
         db.session.commit()
         session["dl"] = (recent + [photo.id])[-100:]
 
+    if needs_derivatives(photo):
+        # 아직 HEIC → JPG 변환 전이면 먼저 변환해서 JPG로 내려줌
+        safe_generate_derivatives([photo])
+
     name = download_filename(photo)
     if use_gcs():
         if gcs_bucket is None:
@@ -1185,6 +1222,9 @@ def api_upload_presigned():
         except (TypeError, ValueError):
             size = 0
         content_type = str(info.get("type") or "").lower()
+        if not content_type:
+            # Windows 등에서 HEIC는 브라우저가 타입을 비워 보내는 경우가 있음 → 확장자로 추정
+            content_type = EXTENSION_MIME_TYPES.get(Path(name).suffix.lower(), "")
         if size <= 0:
             return json_error(f"빈 파일은 업로드할 수 없습니다. ({name})")
         if not is_allowed_image_type(content_type):
@@ -1358,10 +1398,12 @@ def api_upload():
         data = f.read()
         if not data:
             return json_error(f"빈 파일은 업로드할 수 없습니다. ({f.filename})")
-        if not is_allowed_image_type(f.mimetype) or not is_supported_content(data[:SNIFF_BYTES]):
-            reason = unsupported_reason(sniff_image_format(data[:SNIFF_BYTES]), f.filename, f.mimetype or "")
+        # 서버를 거치는 업로드는 파일 내용을 직접 보므로 브라우저가 보낸 타입 대신 실제 형식을 사용
+        fmt = sniff_image_format(data[:SNIFF_BYTES])
+        if fmt not in SUPPORTED_FORMATS:
+            reason = unsupported_reason(fmt, f.filename, f.mimetype or "")
             return json_error(f"{reason} ({f.filename})", error_type="invalid_type")
-        file_items.append((f.filename, data, f.mimetype))
+        file_items.append((f.filename, data, SNIFFED_MIME_TYPES[fmt]))
 
     error = quota_error(
         user, get_today_usage(user), [len(d) for _, d, _ in file_items], [n for n, _, _ in file_items]

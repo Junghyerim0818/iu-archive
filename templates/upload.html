@@ -99,7 +99,7 @@
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
             <p>클릭하거나 드래그하여 파일 선택</p>
-            <small>JPG · PNG · WebP · GIF, 여러 파일 선택 가능, 개별 파일 최대 {{ max_file_mb }}MB</small>
+            <small>{{ supported_label }}, 여러 파일 선택 가능, 개별 파일 최대 {{ max_file_mb }}MB</small>
           </div>
           <div class="file-list" id="fileList" style="display: none;">
             <div class="file-list-header">
@@ -146,9 +146,21 @@ const LIMIT_FILE_MB = {{ max_file_mb|int }};
 const LIMIT_DAY_MB = {{ max_size_mb|int }};
 // 썸네일을 만들 수 있는 형식만 허용 (서버에서도 파일 내용으로 다시 검사함)
 const SUPPORTED_TYPES = '{{ accept_types }}'.split(',').filter(t => t.includes('/'));
+const EXTENSION_TYPES = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+  gif: 'image/gif', heic: 'image/heic', heif: 'image/heif'
+};
+
+// Windows 등에서 HEIC는 브라우저가 타입을 비워 주는 경우가 있어 확장자로 보완
+function effectiveType(file) {
+  const type = (file.type || '').toLowerCase();
+  if (type) return type;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  return EXTENSION_TYPES[ext] || '';
+}
 
 function isSupportedImage(file) {
-  return SUPPORTED_TYPES.includes((file.type || '').toLowerCase());
+  return SUPPORTED_TYPES.includes(effectiveType(file));
 }
 
 // 지원하지 않는 형식(HEIC 등)은 빼고, 왜 빠졌는지 알려줌
@@ -156,11 +168,8 @@ function filterSupportedImages(files) {
   const supported = files.filter(isSupportedImage);
   const unsupported = files.filter(file => !isSupportedImage(file));
   if (unsupported.length > 0) {
-    const isHeic = unsupported.some(f => /\.(heic|heif)$/i.test(f.name) || /hei[cf]/i.test(f.type || ''));
     const list = unsupported.map(f => `• ${f.name}`).join('\n');
-    const guide = isHeic
-      ? 'HEIC(아이폰 고효율 사진)는 지원하지 않아요. JPG로 변환해서 올려주세요.\n(아이폰 설정 > 카메라 > 포맷 > \'높은 호환성\'으로 바꾸면 처음부터 JPG로 저장돼요)'
-      : 'JPG, PNG, WebP, GIF 파일만 업로드할 수 있어요.';
+    const guide = '{{ supported_label }} 파일만 업로드할 수 있어요.';
     showAlert(`${unsupported.length}개의 파일은 지원하지 않는 형식이라 제외되었습니다:\n\n${list}\n\n${guide}`, '지원하지 않는 형식', 'warning', true);
   }
   return supported;
@@ -520,7 +529,7 @@ async function handleUpload() {
           files: selectedFiles.map(file => ({
             name: file.name,
             size: file.size,
-            type: file.type
+            type: effectiveType(file)
           }))
         })
       });
