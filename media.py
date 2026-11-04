@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from io import BytesIO
+from typing import Optional
 
 from PIL import Image, ImageOps
 
@@ -18,6 +19,46 @@ VARIANTS = {
     # 모달 확대 보기용
     "display": (None, 1920, 82),
 }
+
+
+# 업로드 허용 형식 = 썸네일을 확실히 만들 수 있는 형식
+SUPPORTED_FORMATS = ("jpeg", "png", "webp", "gif")
+SUPPORTED_MIME_TYPES = {"image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp", "image/gif"}
+SUPPORTED_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+SNIFF_BYTES = 32  # 형식 판별에 필요한 파일 앞부분 길이
+
+UNSUPPORTED_MESSAGE = "JPG, PNG, WebP, GIF 파일만 업로드할 수 있어요."
+HEIC_MESSAGE = (
+    "HEIC(아이폰 고효율 사진) 파일은 지원하지 않아요. JPG로 변환해서 올려주세요. "
+    "(아이폰 설정 > 카메라 > 포맷 > '높은 호환성'으로 바꾸면 처음부터 JPG로 저장돼요)"
+)
+
+_HEIF_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1"}
+_AVIF_BRANDS = {b"avif", b"avis"}
+
+
+def sniff_image_format(head: bytes) -> Optional[str]:
+    """파일 앞부분(매직 넘버)으로 실제 형식을 판별. 확장자/Content-Type은 믿지 않는다."""
+    if head.startswith(b"\xff\xd8\xff"):
+        return "jpeg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if head[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "webp"
+    if head[4:8] == b"ftyp":
+        brand = head[8:12]
+        if brand in _HEIF_BRANDS:
+            return "heic"
+        if brand in _AVIF_BRANDS:
+            return "avif"
+    return None
+
+
+def unsupported_reason(fmt: Optional[str] = None, name: str = "", content_type: str = "") -> str:
+    hint = f"{fmt or ''} {name} {content_type}".lower()
+    return HEIC_MESSAGE if ("heic" in hint or "heif" in hint) else UNSUPPORTED_MESSAGE
 
 
 class ImageProcessingError(Exception):

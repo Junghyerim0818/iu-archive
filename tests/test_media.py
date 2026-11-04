@@ -7,7 +7,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from media import ImageProcessingError, make_derivatives  # noqa: E402
+from media import ImageProcessingError, make_derivatives, sniff_image_format, unsupported_reason  # noqa: E402
 
 
 def jpeg_bytes(size=(4000, 3000), orientation=None, color=(200, 30, 30)):
@@ -61,3 +61,24 @@ def test_png_with_alpha_keeps_transparency():
 def test_garbage_raises_processing_error():
     with pytest.raises(ImageProcessingError):
         make_derivatives(b"not an image at all")
+
+
+@pytest.mark.parametrize("fmt", ["JPEG", "PNG", "WEBP", "GIF"])
+def test_sniff_supported_formats(fmt):
+    buf = BytesIO()
+    Image.new("RGB", (10, 10)).save(buf, fmt)
+    assert sniff_image_format(buf.getvalue()[:32]) == fmt.lower()
+
+
+def test_sniff_heic_avif_and_unknown():
+    assert sniff_image_format(b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00") == "heic"
+    assert sniff_image_format(b"\x00\x00\x00\x18ftypmif1\x00\x00\x00\x00") == "heic"
+    assert sniff_image_format(b"\x00\x00\x00\x1cftypavif\x00\x00\x00\x00") == "avif"
+    assert sniff_image_format(b"<svg xmlns=...>") is None
+    assert sniff_image_format(b"") is None
+
+
+def test_unsupported_reason_mentions_heic_only_for_heic():
+    assert "HEIC" in unsupported_reason("heic")
+    assert "HEIC" in unsupported_reason(name="IMG_1.HEIF")
+    assert "HEIC" not in unsupported_reason(None, "a.bmp", "image/bmp")

@@ -36,6 +36,8 @@ def client(app_module):
 
 
 CSRF = "test-csrf-token"
+JPEG_MAGIC = b"\xff\xd8\xff\xe0"
+HEIC_HEAD = b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic"
 
 
 def make_user(m, email="user@example.com", is_admin=False):
@@ -200,7 +202,7 @@ def test_local_upload_saves_synchronously_and_rejects_non_images(app_module, cli
             "event_name": "콘서트",
             "tags": "b, a ,a",
             "taken_date": "2024-05-01",
-            "photos": (io.BytesIO(b"\xff\xd8jpegdata"), "사진.jpg", "image/jpeg"),
+            "photos": (io.BytesIO(JPEG_MAGIC + b"jpegdata"), "사진.jpg", "image/jpeg"),
         },
         headers=headers,
         content_type="multipart/form-data",
@@ -209,7 +211,7 @@ def test_local_upload_saves_synchronously_and_rejects_non_images(app_module, cli
     with app_module.app.app_context():
         photo = app_module.Photo.query.one()
         assert photo.tags == "a,b"
-        assert photo.file_size == len(b"\xff\xd8jpegdata")
+        assert photo.file_size == len(JPEG_MAGIC + b"jpegdata")
         assert (tmp_path / "uploads" / photo.relative_path).exists()
 
 
@@ -219,7 +221,7 @@ def test_local_upload_enforces_daily_count(app_module, client):
     app_module.app.config["DAILY_UPLOAD_LIMIT"] = 2
     uid = make_user(app_module)
     login(client, uid)
-    files = [(io.BytesIO(b"abc"), f"{i}.jpg", "image/jpeg") for i in range(3)]
+    files = [(io.BytesIO(JPEG_MAGIC + b"abc"), f"{i}.jpg", "image/jpeg") for i in range(3)]
     resp = client.post(
         "/api/upload",
         data={"photos": files},
@@ -246,9 +248,11 @@ class FakeBlob:
         self.size, self.content_type = len(data), content_type
         self.bucket.store[self.name] = self
 
-    def download_as_bytes(self):
+    def download_as_bytes(self, start=None, end=None):
         if self.name not in self.bucket.store:
             raise FileNotFoundError(self.name)
+        if start is not None:
+            return self.data[start:(end + 1 if end is not None else None)]
         return self.data
 
     def delete(self):
@@ -266,7 +270,9 @@ class FakeBucket:
         return self.store.get(name)
 
     def put(self, name, size=None, content_type="image/jpeg", data=None):
-        self.blob(name).upload_from_string(data if data is not None else b"x" * size, content_type)
+        if data is None:
+            data = JPEG_MAGIC + b"x" * max(0, size - len(JPEG_MAGIC))
+        self.blob(name).upload_from_string(data, content_type)
 
 
 @pytest.fixture()
@@ -483,3 +489,52 @@ def test_admin_backfill_endpoint(app_module, client, tmp_path):
     assert data == {"success": True, "processed": 4, "remaining": 0, "failed": 1}
     html = client.get("/admin/pending").get_data(as_text=True)
     assert 'id="backfillBtn"' not in html
+
+
+# --- 업로드 형식 제한 (썸네일을 만들 수 있는 형식만) ----------------------------
+
+
+def test_local_upload_rejects_heic_even_if_named_jpg(app_module, client):
+    import io
+
+    uid = make_user(app_module)
+    login(client, uid)
+    resp = client.post(
+        "/api/upload",
+        data={"photos": (io.BytesIO(HEIC_HEAD + b"x" * 100), "IMG_0001.jpg", "image/jpeg")},
+        headers={"X-CSRF-Token": CSRF},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert body["error_type"] == "invalid_type" and "HEIC" in body["error"]
+    with app_module.app.app_context():
+        assert app_module.Photo.query.count() == 0
+
+
+def test_presigned_rejects_heic_type_with_guide(app_module, client, gcs):
+    uid = make_user(app_module)
+    login(client, uid)
+    resp = presign(client, [{"name": "IMG_0001.HEIC", "size": 10, "type": "image/heic"}])
+    assert resp.status_code == 400
+    assert "HEIC" in resp.get_json()["error"]
+
+
+def test_complete_rejects_heic_content_disguised_as_jpeg(app_module, client, gcs):
+    uid = make_user(app_module)
+    login(client, uid)
+    item = presign(client, [{"name": "a.jpg", "size": 100, "type": "image/jpeg"}]).get_json()["presigned_urls"][0]
+    gcs.put(item["path"], data=HEIC_HEAD + b"x" * 100, content_type="image/jpeg")
+    resp = complete(client, [item["token"]])
+    assert resp.status_code == 400
+    assert "HEIC" in resp.get_json()["error"]
+    assert item["path"] not in gcs.store
+
+
+def test_upload_page_accept_attribute_lists_only_supported_types(app_module, client):
+    uid = make_user(app_module)
+    login(client, uid)
+    html = client.get("/upload").get_data(as_text=True)
+    assert 'accept="image/*"' not in html
+    assert "image/heic" not in html
+    assert "image/webp" in html and ".jpg" in html

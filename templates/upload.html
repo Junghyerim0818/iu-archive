@@ -87,7 +87,7 @@
             type="file" 
             id="photos"
             name="photos" 
-            accept="image/*" 
+            accept="{{ accept_types }}" 
             multiple
             required
             onchange="handleFileSelect(this)"
@@ -99,7 +99,7 @@
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
             <p>클릭하거나 드래그하여 파일 선택</p>
-            <small>여러 파일 선택 가능, 개별 파일 최대 {{ max_file_mb }}MB</small>
+            <small>JPG · PNG · WebP · GIF, 여러 파일 선택 가능, 개별 파일 최대 {{ max_file_mb }}MB</small>
           </div>
           <div class="file-list" id="fileList" style="display: none;">
             <div class="file-list-header">
@@ -144,6 +144,27 @@
 // 서버 설정에서 내려온 업로드 한도
 const LIMIT_FILE_MB = {{ max_file_mb|int }};
 const LIMIT_DAY_MB = {{ max_size_mb|int }};
+// 썸네일을 만들 수 있는 형식만 허용 (서버에서도 파일 내용으로 다시 검사함)
+const SUPPORTED_TYPES = '{{ accept_types }}'.split(',').filter(t => t.includes('/'));
+
+function isSupportedImage(file) {
+  return SUPPORTED_TYPES.includes((file.type || '').toLowerCase());
+}
+
+// 지원하지 않는 형식(HEIC 등)은 빼고, 왜 빠졌는지 알려줌
+function filterSupportedImages(files) {
+  const supported = files.filter(isSupportedImage);
+  const unsupported = files.filter(file => !isSupportedImage(file));
+  if (unsupported.length > 0) {
+    const isHeic = unsupported.some(f => /\.(heic|heif)$/i.test(f.name) || /hei[cf]/i.test(f.type || ''));
+    const list = unsupported.map(f => `• ${f.name}`).join('\n');
+    const guide = isHeic
+      ? 'HEIC(아이폰 고효율 사진)는 지원하지 않아요. JPG로 변환해서 올려주세요.\n(아이폰 설정 > 카메라 > 포맷 > \'높은 호환성\'으로 바꾸면 처음부터 JPG로 저장돼요)'
+      : 'JPG, PNG, WebP, GIF 파일만 업로드할 수 있어요.';
+    showAlert(`${unsupported.length}개의 파일은 지원하지 않는 형식이라 제외되었습니다:\n\n${list}\n\n${guide}`, '지원하지 않는 형식', 'warning', true);
+  }
+  return supported;
+}
 
 let selectedFiles = [];
 
@@ -193,9 +214,13 @@ function updateUploadStats(todayCount, usedSize, maxFiles = 20, maxSizeMB = 100)
 }
 
 function handleFileSelect(input) {
-  const files = Array.from(input.files);
+  const files = filterSupportedImages(Array.from(input.files));
   
   if (files.length === 0) {
+    // 지원하지 않는 파일만 골랐으면 입력값을 기존 선택 목록으로 되돌림
+    const dataTransfer = new DataTransfer();
+    selectedFiles.forEach(file => dataTransfer.items.add(file));
+    input.files = dataTransfer.files;
     return;
   }
   
@@ -778,10 +803,7 @@ fileUploadArea.addEventListener('drop', (e) => {
   const MAX_TOTAL_SIZE = LIMIT_DAY_MB * 1024 * 1024;
   const usedSize = parseInt(container.getAttribute('data-used-size')) || 0; // bytes
   
-  const imageFiles = files.filter(file => file.type.startsWith('image/'));
-  if (imageFiles.length !== files.length) {
-    showToast('이미지 파일만 업로드할 수 있습니다.', { type: 'error', title: '파일 형식 오류' });
-  }
+  const imageFiles = filterSupportedImages(files);
   
   if (imageFiles.length === 0) {
     return;

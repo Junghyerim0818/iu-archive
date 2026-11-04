@@ -35,7 +35,17 @@ from sqlalchemy import func, inspect, literal, or_, text
 from sqlalchemy.pool import NullPool
 from werkzeug.utils import secure_filename
 
-from media import DERIVATIVE_VERSION, ImageProcessingError, make_derivatives
+from media import (
+    DERIVATIVE_VERSION,
+    SNIFF_BYTES,
+    SUPPORTED_EXTENSIONS,
+    SUPPORTED_FORMATS,
+    SUPPORTED_MIME_TYPES,
+    ImageProcessingError,
+    make_derivatives,
+    sniff_image_format,
+    unsupported_reason,
+)
 
 try:
     from dotenv import load_dotenv
@@ -101,8 +111,6 @@ app.config.update(
 APP_TZ = ZoneInfo(app.config["APP_TIMEZONE"])
 MB = 1024 * 1024
 
-# SVG는 스크립트를 담을 수 있으므로 제외
-BLOCKED_IMAGE_TYPES = {"image/svg+xml"}
 REJECTED_PLACEHOLDER = (
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' "
     "viewBox='0 0 200 200'%3E%3Crect fill='%231a1a1a' width='200' height='200'/%3E%3Ctext "
@@ -314,8 +322,14 @@ def parse_date(value: Optional[str], default: Optional[date] = None) -> Optional
 
 
 def is_allowed_image_type(content_type: Optional[str]) -> bool:
+    """썸네일을 만들 수 있는 형식(JPG/PNG/WebP/GIF)만 허용. SVG·HEIC 등은 거부."""
     content_type = (content_type or "").split(";")[0].strip().lower()
-    return content_type.startswith("image/") and content_type not in BLOCKED_IMAGE_TYPES
+    return content_type in SUPPORTED_MIME_TYPES
+
+
+def is_supported_content(head: bytes) -> bool:
+    """실제 파일 내용(앞부분)이 허용 형식인지. Content-Type은 클라이언트가 속일 수 있음."""
+    return sniff_image_format(head) in SUPPORTED_FORMATS
 
 
 def escape_like(value: str) -> str:
@@ -779,6 +793,7 @@ def upload():
         storage_backend=app.config["STORAGE_BACKEND"],
         max_size_mb=app.config["DAILY_UPLOAD_MB"],
         max_file_mb=app.config["MAX_FILE_MB"],
+        accept_types=",".join(sorted(SUPPORTED_MIME_TYPES) + list(SUPPORTED_EXTENSIONS)),
         today=local_today(),
     )
 
@@ -1173,7 +1188,10 @@ def api_upload_presigned():
         if size <= 0:
             return json_error(f"빈 파일은 업로드할 수 없습니다. ({name})")
         if not is_allowed_image_type(content_type):
-            return json_error(f"이미지 파일만 업로드할 수 있습니다. ({name})", error_type="invalid_type")
+            return json_error(
+                f"{unsupported_reason(name=name, content_type=content_type)} ({name})",
+                error_type="invalid_type",
+            )
         cleaned.append((name, size, content_type))
 
     # 선검사 (최종 검증은 /api/upload/complete 에서 실제 파일 크기로 다시 함)
@@ -1266,8 +1284,13 @@ def api_upload_complete():
 
         size = int(blob.size or 0)
         reason = None
-        if not is_allowed_image_type(blob.content_type):
-            reason = "이미지 파일이 아닙니다."
+        try:
+            head = blob.download_as_bytes(start=0, end=SNIFF_BYTES - 1)
+        except Exception as exc:
+            app.logger.warning(f"업로드 파일 형식 확인 실패 ({path}): {exc}")
+            head = b""
+        if not is_allowed_image_type(blob.content_type) or not is_supported_content(head):
+            reason = unsupported_reason(sniff_image_format(head), name, blob.content_type or "")
         elif not user.is_admin:
             if size > lim["max_file_bytes"]:
                 reason = f"파일 크기가 {app.config['MAX_FILE_MB']}MB를 초과합니다."
@@ -1332,11 +1355,12 @@ def api_upload():
 
     file_items = []
     for f in files:
-        if not is_allowed_image_type(f.mimetype):
-            return json_error(f"이미지 파일만 업로드할 수 있습니다. ({f.filename})", error_type="invalid_type")
         data = f.read()
         if not data:
             return json_error(f"빈 파일은 업로드할 수 없습니다. ({f.filename})")
+        if not is_allowed_image_type(f.mimetype) or not is_supported_content(data[:SNIFF_BYTES]):
+            reason = unsupported_reason(sniff_image_format(data[:SNIFF_BYTES]), f.filename, f.mimetype or "")
+            return json_error(f"{reason} ({f.filename})", error_type="invalid_type")
         file_items.append((f.filename, data, f.mimetype))
 
     error = quota_error(
