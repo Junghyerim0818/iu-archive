@@ -6,12 +6,21 @@
     <p>업로드된 사진을 검토하고 승인 또는 거절하세요</p>
   </div>
 
-  {% if missing_derivatives %}
-    <!-- 예전 사진 썸네일 백필 -->
+  {% if processing_pending or processing_failed %}
+    <!-- 예전 사진 정리 백필: 썸네일 생성 + 원본의 위치 정보(GPS) 제거 + HEIC→JPG -->
     <div class="pending-count derivatives-backfill" id="derivativesBackfill">
-      <span>썸네일이 없는 사진: <strong id="missingDerivatives">{{ missing_derivatives }}</strong>개
-        <small>(조회할 때 자동으로 만들어지지만, 미리 만들어 두면 첫 로딩이 빨라집니다)</small></span>
-      <button type="button" class="btn btn-primary" id="backfillBtn">썸네일 미리 만들기</button>
+      <span>정리가 필요한 사진: <strong id="processingPending">{{ processing_pending }}</strong>개
+        {% if processing_failed %}· 처리 실패 <strong id="processingFailed">{{ processing_failed }}</strong>개{% endif %}
+        <small>썸네일 생성과 원본의 위치 정보(GPS) 제거를 합니다. 원본은 다운로드 직전에도 자동으로 정리되지만,
+          미리 해두면 첫 로딩이 빨라집니다.</small></span>
+      <span class="backfill-buttons">
+        {% if processing_pending %}
+          <button type="button" class="btn btn-primary" id="backfillBtn">지금 정리하기</button>
+        {% endif %}
+        {% if processing_failed %}
+          <button type="button" class="btn" id="retryFailedBtn">실패한 사진 다시 시도</button>
+        {% endif %}
+      </span>
     </div>
   {% endif %}
 
@@ -194,28 +203,38 @@ function clearSelection() {
 }
 
 // 썸네일 백필: 20개씩 반복 요청
-async function runDerivativesBackfill(btn) {
-  const counter = document.getElementById('missingDerivatives');
-  btn.disabled = true;
+// 사진 정리 백필: 20개씩 반복 요청
+async function runDerivativesBackfill(btn, retryFailed = false) {
+  const pending = document.getElementById('processingPending');
+  const failed = document.getElementById('processingFailed');
+  const original = btn.textContent;
+  document.querySelectorAll('.backfill-buttons button').forEach(b => { b.disabled = true; });
   try {
+    let first = true;
     while (true) {
-      btn.textContent = '만드는 중...';
-      const res = await fetch('/admin/derivatives', { method: 'POST' });
+      btn.textContent = '정리하는 중...';
+      const res = await fetch('/admin/derivatives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retry_failed: retryFailed && first })
+      });
+      first = false;
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
-      counter.textContent = data.remaining;
+      if (pending) pending.textContent = data.remaining;
+      if (failed) failed.textContent = data.failed;
       if (data.remaining === 0 || data.processed === 0) {
-        const failedNote = data.failed ? `\n(${data.failed}개는 지원하지 않는 형식이라 원본으로 표시됩니다)` : '';
-        showAlert(data.remaining === 0 ? `썸네일 생성이 끝났습니다.${failedNote}` : `일부를 처리하지 못했습니다. 잠시 후 다시 시도해주세요.${failedNote}`,
-                  '썸네일', data.remaining === 0 ? 'success' : 'info');
+        const failedNote = data.failed ? `\n(${data.failed}개는 손상되었거나 열 수 없는 파일이라 표시되지 않습니다)` : '';
+        showAlert(data.remaining === 0 ? `사진 정리가 끝났습니다.${failedNote}` : `일부를 처리하지 못했습니다. 잠시 후 다시 시도해주세요.${failedNote}`,
+                  '사진 정리', data.remaining === 0 ? 'success' : 'info');
         break;
       }
     }
   } catch (e) {
-    showAlert(`썸네일 생성 중 오류가 발생했습니다.\n${e.message}`, '썸네일', 'error');
+    showAlert(`사진 정리 중 오류가 발생했습니다.\n${e.message}`, '사진 정리', 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = '썸네일 미리 만들기';
+    document.querySelectorAll('.backfill-buttons button').forEach(b => { b.disabled = false; });
+    btn.textContent = original;
   }
 }
 
@@ -223,6 +242,8 @@ async function runDerivativesBackfill(btn) {
 document.addEventListener('DOMContentLoaded', function() {
   const backfillBtn = document.getElementById('backfillBtn');
   if (backfillBtn) backfillBtn.addEventListener('click', () => runDerivativesBackfill(backfillBtn));
+  const retryFailedBtn = document.getElementById('retryFailedBtn');
+  if (retryFailedBtn) retryFailedBtn.addEventListener('click', () => runDerivativesBackfill(retryFailedBtn, true));
 
   // 확대 보기 (값을 인라인 JS에 넣지 않고 data 속성에서 읽음 → XSS 방지)
   document.querySelectorAll('.photo-zoom-btn').forEach(btn => {

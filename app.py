@@ -44,6 +44,7 @@ from media import (
     ImageProcessingError,
     make_derivatives,
     sniff_image_format,
+    strip_metadata,
     unsupported_reason,
 )
 
@@ -200,7 +201,8 @@ class Photo(db.Model):
     display_path = db.Column(db.String(600))  # 확대 보기용
     width = db.Column(db.Integer)  # 원본 크기 (회전 보정 후)
     height = db.Column(db.Integer)
-    derive_failed = db.Column(db.Boolean, default=False)  # 처리할 수 없는 형식 (HEIC 등) → 원본 사용
+    derive_failed = db.Column(db.Boolean, default=False)  # 처리할 수 없는 파일 (손상 등)
+    meta_clean = db.Column(db.Boolean, default=False)  # 원본에서 GPS 등 메타데이터 제거 완료
 
     user = db.relationship("User", backref="photos")
 
@@ -218,6 +220,7 @@ PHOTO_EXTRA_COLUMNS = {
     "width": "INTEGER",
     "height": "INTEGER",
     "derive_failed": "BOOLEAN DEFAULT FALSE",
+    "meta_clean": "BOOLEAN DEFAULT FALSE",
 }
 PHOTO_INDEXES = {
     "ix_photo_status_taken_date": "photo (status, taken_date)",
@@ -483,40 +486,69 @@ def converted_path(relative_path: str) -> str:
     return candidate if candidate != relative_path else f"{stem}_converted.jpg"
 
 
-def _derive_job(relative_path: str, data: Optional[bytes]) -> dict:
-    """(스레드에서 실행) 원본을 읽어 파생 이미지를 만들고 저장. DB는 건드리지 않음.
+def _process_job(relative_path: str, data: Optional[bytes], clean: bool, derive: bool) -> dict:
+    """(스레드에서 실행) 사진 1장 처리. DB는 건드리지 않고 바꿀 컬럼 값만 돌려준다.
 
-    HEIC면 JPG로 변환한 파일을 새 원본으로 저장하고, 예전 HEIC 경로는 `_replaced`로 돌려준다
-    (DB 반영이 끝난 뒤에 지움).
+    1. 원본 메타데이터(GPS 등) 제거 → 같은 경로에 덮어씀 (이전에 발급된 서명 URL도 깨끗한 파일을 받음)
+    2. 썸네일/확대용 WebP 생성
+    3. HEIC면 JPG로 변환해 새 원본으로 저장하고, 예전 HEIC 경로는 `_replaced`로 돌려준다 (DB 반영 후 삭제)
+    처리할 수 없는 파일이면 derive_failed=True.
     """
-    result = make_derivatives(data if data is not None else read_file(relative_path))
-    updates = {"width": result.width, "height": result.height}
-    source_path = relative_path
-    if result.converted_jpeg is not None:
-        source_path = converted_path(relative_path)
-        save_file(source_path, result.converted_jpeg, "image/jpeg")
-        updates.update(relative_path=source_path, file_size=len(result.converted_jpeg), _replaced=relative_path)
-    for kind, content in result.files.items():
-        path = derivative_path(source_path, kind)
-        save_file(path, content, "image/webp")
-        updates[VARIANT_COLUMNS[kind]] = path
+    data = data if data is not None else read_file(relative_path)
+    fmt = sniff_image_format(data[:SNIFF_BYTES])
+    updates = {}
+    try:
+        if clean and fmt in ("jpeg", "png", "webp", "gif"):
+            # 형식을 아는 파일만 '정리 완료'로 표시. 모르는 파일은 원본을 내보내지 않음
+            cleaned = strip_metadata(data)
+            if cleaned != data:
+                save_file(relative_path, cleaned, SNIFFED_MIME_TYPES.get(fmt, "application/octet-stream"))
+                updates["file_size"] = len(cleaned)
+                data = cleaned
+            updates["meta_clean"] = True
+
+        if derive or (clean and fmt == "heic"):  # HEIC는 변환이 곧 정리
+            result = make_derivatives(data)
+            updates.update(width=result.width, height=result.height)
+            source_path = relative_path
+            if result.converted_jpeg is not None:
+                source_path = converted_path(relative_path)
+                save_file(source_path, result.converted_jpeg, "image/jpeg")
+                updates.update(
+                    relative_path=source_path,
+                    file_size=len(result.converted_jpeg),
+                    meta_clean=True,  # 변환한 JPG에는 메타데이터를 넣지 않음
+                    _replaced=relative_path,
+                )
+            for kind, content in result.files.items():
+                path = derivative_path(source_path, kind)
+                save_file(path, content, "image/webp")
+                updates[VARIANT_COLUMNS[kind]] = path
+    except ImageProcessingError as exc:
+        updates.update(derive_failed=True, _error=str(exc))
     return updates
 
 
-def needs_derivatives(photo: Photo) -> bool:
-    return photo.status != "rejected" and not photo.thumb_path and not photo.derive_failed
+def needs_processing(photo: Photo) -> bool:
+    """썸네일이 없거나 원본 메타데이터가 아직 정리되지 않은 사진."""
+    if photo.status == "rejected" or photo.derive_failed:
+        return False
+    return not photo.thumb_path or not photo.meta_clean
 
 
-def generate_derivatives(photos: Iterable[Photo], budget: Optional[float] = None,
-                         data_by_path: Optional[dict] = None) -> int:
-    """시간 예산 안에서 파생 이미지를 만들고 DB에 반영. 처리(성공+영구 실패)한 개수를 반환."""
-    targets = [p for p in photos if needs_derivatives(p)]
+def process_photos(photos: Iterable[Photo], budget: Optional[float] = None,
+                   data_by_path: Optional[dict] = None) -> int:
+    """시간 예산 안에서 사진들을 처리하고 DB에 반영. 처리(성공+영구 실패)한 개수를 반환."""
+    targets = [p for p in photos if needs_processing(p)]
     if not targets:
         return 0
     budget = app.config["DERIVATIVE_TIME_BUDGET"] if budget is None else budget
     data_by_path = data_by_path or {}
     futures = {
-        _derive_executor.submit(_derive_job, p.relative_path, data_by_path.get(p.relative_path)): p
+        _derive_executor.submit(
+            _process_job, p.relative_path, data_by_path.get(p.relative_path),
+            not p.meta_clean, not p.thumb_path,
+        ): p
         for p in targets
     }
     done, not_done = wait(futures, timeout=budget)
@@ -529,19 +561,16 @@ def generate_derivatives(photos: Iterable[Photo], budget: Optional[float] = None
             updates = dict(future.result())
             if "_replaced" in updates:
                 replaced_paths.append(updates.pop("_replaced"))
+            if "_error" in updates:
+                app.logger.warning(f"사진 처리 불가 (photo {photo.id}): {updates.pop('_error')}")
             for key, value in updates.items():
                 setattr(photo, key, value)
-            photo.derive_failed = False
-            handled += 1
-        elif isinstance(exc, ImageProcessingError):
-            app.logger.warning(f"파생 이미지 생성 불가 (photo {photo.id}): {exc}")
-            photo.derive_failed = True
             handled += 1
         else:
             # 네트워크 오류 등 일시적인 문제 → 다음에 다시 시도
-            app.logger.error(f"파생 이미지 생성 실패 (photo {photo.id}): {exc}")
+            app.logger.error(f"사진 처리 실패 (photo {photo.id}): {exc}")
     if not_done:
-        app.logger.info(f"파생 이미지 {len(not_done)}개는 시간 예산 초과로 다음에 처리")
+        app.logger.info(f"사진 {len(not_done)}개는 시간 예산 초과로 다음에 처리")
     try:
         db.session.commit()
     except Exception as exc:
@@ -554,14 +583,35 @@ def generate_derivatives(photos: Iterable[Photo], budget: Optional[float] = None
     return handled
 
 
-def safe_generate_derivatives(photos, **kwargs) -> int:
+def safe_process_photos(photos, **kwargs) -> int:
     """업로드/승인 흐름을 절대 깨뜨리지 않도록 감싼 버전."""
     try:
-        return generate_derivatives(photos, **kwargs)
+        return process_photos(photos, **kwargs)
     except Exception as exc:
         db.session.rollback()
-        app.logger.error(f"파생 이미지 생성 중 오류: {exc}", exc_info=True)
+        app.logger.error(f"사진 처리 중 오류: {exc}", exc_info=True)
         return 0
+
+
+def ensure_clean_original(photo: Photo) -> bool:
+    """원본을 내보내기 직전에 호출. 메타데이터가 정리된 원본만 내보낼 수 있다."""
+    if needs_processing(photo):
+        safe_process_photos([photo])
+    return bool(photo.meta_clean)
+
+
+def original_not_ready(photo: Photo):
+    """정리가 끝나지 않은 원본은 내보내지 않음 (위치 정보 노출 방지).
+
+    정리할 수 없는 파일(손상 등)은 404, 아직 처리 중이면 503 + Retry-After.
+    """
+    if photo.derive_failed:
+        abort(404)
+    resp = Response("사진을 처리하고 있습니다. 잠시 후 다시 시도해주세요.", status=503,
+                    mimetype="text/plain")
+    resp.headers["Retry-After"] = "5"
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 def variant_url(photo: Photo, kind: str) -> str:
@@ -570,12 +620,17 @@ def variant_url(photo: Photo, kind: str) -> str:
     return url_for("photo_variant", photo_id=photo.id, kind=kind, v=DERIVATIVE_VERSION)
 
 
-def missing_derivatives_query():
+def pending_processing_query():
+    """needs_processing()과 같은 조건의 쿼리 (백필용)."""
     return Photo.query.filter(
         Photo.status != "rejected",
-        Photo.thumb_path.is_(None),
         or_(Photo.derive_failed.is_(None), Photo.derive_failed.is_(False)),
+        or_(Photo.thumb_path.is_(None), Photo.meta_clean.is_(None), Photo.meta_clean.is_(False)),
     )
+
+
+def failed_processing_query():
+    return Photo.query.filter(Photo.derive_failed.is_(True), Photo.status != "rejected")
 
 
 def signed_url(relative_path: str, method: str = "GET", **kwargs) -> str:
@@ -586,17 +641,6 @@ def signed_url(relative_path: str, method: str = "GET", **kwargs) -> str:
         method=method,
         **kwargs,
     )
-
-
-def build_file_url(photo: Photo) -> str:
-    # 거절된 사진은 스토리지에서 삭제되므로 기본 이미지 반환
-    if photo.status == "rejected":
-        return REJECTED_PLACEHOLDER
-    if use_gcs():
-        if gcs_bucket is None:
-            return REJECTED_PLACEHOLDER
-        return signed_url(photo.relative_path)
-    return url_for("files", filename=photo.relative_path)
 
 
 def download_filename(photo: Photo) -> str:
@@ -687,7 +731,6 @@ def csrf_protect():
 @app.context_processor
 def inject_helpers():
     return {
-        "file_url": build_file_url,
         "thumb_url": lambda photo: variant_url(photo, "thumb"),
         "display_url": lambda photo: variant_url(photo, "display"),
         "csrf_token": get_csrf_token,
@@ -863,7 +906,7 @@ def admin_pending():
         db.session.commit()
         if action in ("approve", "batch_approve"):
             # 업로드 때 못 만든 썸네일이 있으면 승인하면서 채움 (남은 건 첫 조회 때 생성)
-            safe_generate_derivatives(photos)
+            safe_process_photos(photos)
 
         verb = "승인" if action in ("approve", "batch_approve") else "거절"
         flash(f"{len(photos)}개의 사진이 {verb}되었습니다.", "success")
@@ -896,36 +939,43 @@ def admin_pending():
         organized_photos=organized_photos,
         total_count=len(pending_photos),
         user=current_user(),
-        missing_derivatives=missing_derivatives_query().count(),
+        processing_pending=pending_processing_query().count(),
+        processing_failed=failed_processing_query().count(),
     )
 
 
 @app.route("/admin/derivatives", methods=["GET", "POST"])
 @admin_required
 def admin_derivatives():
-    """썸네일이 없는 사진(예전 사진)을 조금씩 채우는 백필. POST 한 번에 최대 20개."""
+    """예전 사진 정리 백필 (썸네일 생성 + 위치 정보 제거). POST 한 번에 최대 20개.
+
+    POST body {"retry_failed": true} 이면 처리 실패로 표시된 사진을 다시 대기열에 넣는다.
+    """
     processed = 0
     if request.method == "POST":
-        batch = missing_derivatives_query().order_by(Photo.id).limit(20).all()
-        processed = generate_derivatives(batch)
+        if (request.get_json(silent=True) or {}).get("retry_failed"):
+            failed_processing_query().update({Photo.derive_failed: False}, synchronize_session=False)
+            db.session.commit()
+        batch = pending_processing_query().order_by(Photo.id).limit(20).all()
+        processed = process_photos(batch)
     return jsonify({
         "success": True,
         "processed": processed,
-        "remaining": missing_derivatives_query().count(),
-        "failed": Photo.query.filter(Photo.derive_failed.is_(True), Photo.status != "rejected").count(),
+        "remaining": pending_processing_query().count(),
+        "failed": failed_processing_query().count(),
     })
 
 
 @app.cli.command("backfill-derivatives")
 def backfill_derivatives_command():
-    """flask --app app backfill-derivatives : 썸네일이 없는 모든 사진 처리"""
+    """flask --app app backfill-derivatives : 정리가 필요한 모든 사진 처리 (썸네일 + 위치 정보 제거)"""
     ensure_schema()
     while True:
-        batch = missing_derivatives_query().order_by(Photo.id).limit(50).all()
+        batch = pending_processing_query().order_by(Photo.id).limit(50).all()
         if not batch:
             break
-        handled = generate_derivatives(batch, budget=600)
-        print(f"처리 {handled}개, 남은 {missing_derivatives_query().count()}개")
+        handled = process_photos(batch, budget=600)
+        print(f"처리 {handled}개, 남은 {pending_processing_query().count()}개")
         if handled == 0:
             break
 
@@ -968,6 +1018,8 @@ def files(filename):
     photo = Photo.query.filter_by(relative_path=filename).first()
     if not can_view_photo(photo, current_user()):
         abort(404)
+    if not ensure_clean_original(photo):
+        return original_not_ready(photo)
     return send_from_directory(ensure_upload_folder(), photo.relative_path)
 
 
@@ -977,6 +1029,8 @@ def photo_image(photo_id):
     photo = db.session.get(Photo, photo_id)
     if not can_view_photo(photo, current_user()):
         abort(404)
+    if not ensure_clean_original(photo):
+        return original_not_ready(photo)
     if use_gcs():
         if gcs_bucket is None:
             abort(503)
@@ -988,6 +1042,8 @@ def photo_image(photo_id):
 
 def original_response(photo: Photo):
     """파생 이미지를 쓸 수 없을 때 원본으로 대체 (캐시 금지: 서명 URL은 만료됨)."""
+    if not ensure_clean_original(photo):
+        return original_not_ready(photo)
     if use_gcs():
         if gcs_bucket is None:
             abort(503)
@@ -1012,8 +1068,9 @@ def photo_variant(photo_id, kind):
     if not is_public and not can_view_photo(photo, current_user()):
         abort(404)
 
-    if needs_derivatives(photo):
-        safe_generate_derivatives([photo])
+    # 썸네일이 없을 때만 그 자리에서 처리 (이미 있으면 원본 정리는 원본을 내보낼 때/백필에서 함)
+    if not photo.thumb_path and needs_processing(photo):
+        safe_process_photos([photo])
 
     path = getattr(photo, VARIANT_COLUMNS[kind])
     if not path:
@@ -1038,6 +1095,9 @@ def photo_download(photo_id):
     photo = db.session.get(Photo, photo_id)
     if photo is None or photo.status != "approved":
         abort(404)
+    # 위치 정보 제거(+HEIC→JPG 변환)가 끝난 원본만 내보냄
+    if not ensure_clean_original(photo):
+        return original_not_ready(photo)
 
     # 같은 세션에서 같은 사진을 반복 다운로드해도 한 번만 카운트
     recent = session.get("dl", [])
@@ -1048,10 +1108,6 @@ def photo_download(photo_id):
         )
         db.session.commit()
         session["dl"] = (recent + [photo.id])[-100:]
-
-    if needs_derivatives(photo):
-        # 아직 HEIC → JPG 변환 전이면 먼저 변환해서 JPG로 내려줌
-        safe_generate_derivatives([photo])
 
     name = download_filename(photo)
     if use_gcs():
@@ -1360,7 +1416,7 @@ def api_upload_complete():
         db.session.add_all(accepted)
         db.session.commit()
         # 관리자 화면이 원본 대신 가벼운 썸네일을 보도록 바로 생성 (시간 예산 내에서만)
-        safe_generate_derivatives(accepted)
+        safe_process_photos(accepted)
 
     if not accepted:
         return json_error(
@@ -1440,7 +1496,7 @@ def api_upload():
         app.logger.error(f"업로드 실패: {exc}", exc_info=True)
         return json_error("파일 저장 중 오류가 발생했습니다.", 500)
 
-    safe_generate_derivatives(new_photos, data_by_path=data_by_path)
+    safe_process_photos(new_photos, data_by_path=data_by_path)
 
     return jsonify({
         "success": True,

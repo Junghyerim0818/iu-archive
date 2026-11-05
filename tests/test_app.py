@@ -169,7 +169,7 @@ def test_download_counts_once_per_session(app_module, client, tmp_path):
     pid = add_photo(app_module, uid, relative_path="2024-05-01/a.jpg")
     f = tmp_path / "uploads" / "2024-05-01" / "a.jpg"
     f.parent.mkdir(parents=True)
-    f.write_bytes(b"img")
+    f.write_bytes(real_jpeg((300, 200)))
     for _ in range(3):
         resp = client.get(f"/photos/{pid}/download")
         assert resp.status_code == 200
@@ -438,16 +438,36 @@ def test_pending_thumb_is_private(app_module, client, tmp_path):
     assert resp.headers["Cache-Control"].startswith("private")
 
 
-def test_unprocessable_image_falls_back_to_original_without_caching(app_module, client, tmp_path):
+def test_unrecognized_file_is_never_served_as_original(app_module, client, tmp_path):
+    # 형식을 알 수 없는 파일은 메타데이터를 정리했다고 보장할 수 없으므로 원본을 내보내지 않음
     uid = make_user(app_module)
-    pid = add_photo(app_module, uid, relative_path="2024-05-01/x.heic")
-    write_local(tmp_path, "2024-05-01/x.heic", b"pretend-heic")
-    resp = client.get(f"/photos/{pid}/thumb")
-    assert resp.status_code == 200
-    assert resp.headers["Cache-Control"] == "private, no-store"
-    assert resp.data == b"pretend-heic"
+    pid = add_photo(app_module, uid, relative_path="2024-05-01/x.bin")
+    write_local(tmp_path, "2024-05-01/x.bin", b"unknown-format")
+    assert client.get(f"/photos/{pid}/thumb").status_code == 404
+    assert client.get(f"/photos/{pid}/image").status_code == 404
+    assert client.get(f"/photos/{pid}/download").status_code == 404
     with app_module.app.app_context():
-        assert app_module.db.session.get(app_module.Photo, pid).derive_failed is True
+        photo = app_module.db.session.get(app_module.Photo, pid)
+        assert photo.derive_failed is True and not photo.meta_clean
+
+
+def test_truncated_jpeg_is_cleaned_and_still_shown(app_module, client, tmp_path):
+    # 중간에서 잘린 JPEG도 위치 정보를 지우고 (끝 표시를 붙여) 보여줌
+    from io import BytesIO
+
+    from PIL import Image
+
+    import media
+
+    buf = BytesIO()
+    Image.effect_noise((800, 600), 60).convert("RGB").save(buf, "JPEG", exif=gps_exif())
+    data = buf.getvalue()
+    uid = make_user(app_module)
+    pid = add_photo(app_module, uid, relative_path="2024-05-01/c.jpg")
+    write_local(tmp_path, "2024-05-01/c.jpg", data[: len(data) // 2])
+    assert client.get(f"/photos/{pid}/thumb").status_code == 200
+    cleaned = (tmp_path / "uploads" / "2024-05-01/c.jpg").read_bytes()
+    assert not media.has_private_metadata(cleaned)
 
 
 def test_archive_api_does_not_sign_originals(app_module, client, gcs):
@@ -601,3 +621,122 @@ def test_upload_page_accept_attribute_lists_only_supported_types(app_module, cli
     assert 'accept="image/*"' not in html
     assert "image/heic" in html and ".heic" in html and "image/webp" in html
     assert "image/bmp" not in html
+
+
+# --- 원본 메타데이터(GPS 등) 제거 ----------------------------------------------
+
+
+def gps_exif(orientation=None):
+    from PIL import Image
+
+    exif = Image.Exif()
+    exif[0x010F] = "Apple"
+    exif[0x0110] = "iPhone 15 Pro"
+    exif[0x8825] = {1: "N", 2: (37.0, 33.0, 12.5), 3: "E", 4: (126.0, 58.0, 41.0)}
+    if orientation:
+        exif[0x0112] = orientation
+    return exif.tobytes()
+
+
+def jpeg_with_gps(size=(1200, 900), orientation=6):
+    from io import BytesIO
+
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", size, (90, 90, 200)).save(buf, "JPEG", quality=90, exif=gps_exif(orientation))
+    return buf.getvalue()
+
+
+def test_local_upload_removes_gps_but_keeps_orientation(app_module, client, tmp_path):
+    import io
+
+    from PIL import Image
+
+    import media
+
+    uid = make_user(app_module)
+    login(client, uid)
+    original = jpeg_with_gps()
+    assert media.has_private_metadata(original)
+    resp = client.post(
+        "/api/upload",
+        data={"photos": (io.BytesIO(original), "a.jpg", "image/jpeg")},
+        headers={"X-CSRF-Token": CSRF},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 200
+    with app_module.app.app_context():
+        photo = app_module.Photo.query.one()
+        assert photo.meta_clean is True
+        stored = (tmp_path / "uploads" / photo.relative_path).read_bytes()
+        assert photo.file_size == len(stored)
+        assert (photo.width, photo.height) == (900, 1200)  # 회전 반영
+    assert not media.has_private_metadata(stored)
+    assert Image.open(io.BytesIO(stored)).getexif().get(0x0112) == 6
+
+
+def test_gcs_upload_overwrites_original_with_clean_copy(app_module, client, gcs):
+    import media
+
+    uid = make_user(app_module)
+    login(client, uid)
+    item = presign(client, [{"name": "a.jpg", "size": 100, "type": "image/jpeg"}]).get_json()["presigned_urls"][0]
+    gcs.put(item["path"], data=jpeg_with_gps(), content_type="image/jpeg")
+    assert complete(client, [item["token"]]).status_code == 200
+    stored = gcs.store[item["path"]]
+    assert not media.has_private_metadata(stored.data)
+    assert stored.content_type == "image/jpeg"
+
+
+def test_existing_photo_is_cleaned_before_download_even_if_thumb_exists(app_module, client, tmp_path):
+    """이번 변경 전에 썸네일까지 만들어진 예전 사진도 다운로드 직전에 정리됨."""
+    import media
+
+    uid = make_user(app_module)
+    pid = add_photo(app_module, uid, relative_path="2024-05-01/old.jpg",
+                    thumb_path="derived/v1/thumb/x.webp", display_path="derived/v1/display/x.webp")
+    write_local(tmp_path, "2024-05-01/old.jpg", jpeg_with_gps())
+    resp = client.get(f"/photos/{pid}/download")
+    assert resp.status_code == 200
+    assert not media.has_private_metadata(resp.data)
+    with app_module.app.app_context():
+        assert app_module.db.session.get(app_module.Photo, pid).meta_clean is True
+
+
+def test_original_is_not_served_while_cleaning_is_unfinished(app_module, client, tmp_path, monkeypatch):
+    uid = make_user(app_module)
+    pid = add_photo(app_module, uid, relative_path="2024-05-01/slow.jpg")
+    write_local(tmp_path, "2024-05-01/slow.jpg", jpeg_with_gps())
+    # 처리가 시간 안에 끝나지 못한 상황
+    monkeypatch.setattr(app_module, "process_photos", lambda photos, **kw: 0)
+    for url in (f"/photos/{pid}/download", f"/photos/{pid}/image"):
+        resp = client.get(url)
+        assert resp.status_code == 503
+        assert resp.headers["Retry-After"]
+
+
+def test_backfill_cleans_old_photos_and_can_retry_failed(app_module, client, tmp_path):
+    import media
+
+    admin = make_user(app_module, "admin@example.com", is_admin=True)
+    pid = add_photo(app_module, admin, relative_path="2024-05-01/old.jpg",
+                    thumb_path="derived/v1/thumb/x.webp", display_path="derived/v1/display/x.webp")
+    write_local(tmp_path, "2024-05-01/old.jpg", jpeg_with_gps())
+    failed = add_photo(app_module, admin, relative_path="2024-05-01/f.jpg", derive_failed=True)
+    write_local(tmp_path, "2024-05-01/f.jpg", jpeg_with_gps())
+    login(client, admin)
+
+    html = client.get("/admin/pending").get_data(as_text=True)
+    assert 'id="backfillBtn"' in html and 'id="retryFailedBtn"' in html
+
+    data = client.post("/admin/derivatives", headers={"X-CSRF-Token": CSRF}).get_json()
+    assert data["remaining"] == 0 and data["failed"] == 1
+    assert not media.has_private_metadata((tmp_path / "uploads/2024-05-01/old.jpg").read_bytes())
+
+    data = client.post("/admin/derivatives", json={"retry_failed": True}, headers={"X-CSRF-Token": CSRF}).get_json()
+    assert data == {"success": True, "processed": 1, "remaining": 0, "failed": 0}
+    with app_module.app.app_context():
+        photo = app_module.db.session.get(app_module.Photo, failed)
+        assert photo.meta_clean and photo.thumb_path
+    assert pid

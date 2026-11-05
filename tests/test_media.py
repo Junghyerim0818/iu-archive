@@ -7,7 +7,14 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from media import ImageProcessingError, make_derivatives, sniff_image_format, unsupported_reason  # noqa: E402
+from media import (  # noqa: E402
+    ImageProcessingError,
+    has_private_metadata,
+    make_derivatives,
+    sniff_image_format,
+    strip_metadata,
+    unsupported_reason,
+)
 
 
 def jpeg_bytes(size=(4000, 3000), orientation=None, color=(200, 30, 30)):
@@ -107,3 +114,72 @@ def test_large_jpeg_reports_original_size_even_with_draft_decoding():
 
 def test_unsupported_reason():
     assert "JPG" in unsupported_reason(None, "a.bmp", "image/bmp")
+
+
+# --- 메타데이터 제거 ------------------------------------------------------------
+
+
+def gps_exif(orientation=None):
+    exif = Image.Exif()
+    exif[0x010F] = "Apple"
+    exif[0x8825] = {1: "N", 2: (37.0, 33.0, 12.5), 3: "E", 4: (126.0, 58.0, 41.0)}
+    if orientation:
+        exif[0x0112] = orientation
+    return exif.tobytes()
+
+
+def pixels(data):
+    return list(Image.open(BytesIO(data)).convert("RGB").getdata())
+
+
+@pytest.mark.parametrize("fmt,kwargs", [
+    ("JPEG", {"quality": 90}),
+    ("JPEG", {"quality": 90, "progressive": True}),
+    ("PNG", {}),
+    ("WEBP", {"quality": 80}),
+])
+def test_strip_removes_gps_without_touching_pixels(fmt, kwargs):
+    img = Image.effect_noise((320, 240), 50).convert("RGB")
+    buf = BytesIO()
+    img.save(buf, fmt, exif=gps_exif(), **kwargs)
+    original = buf.getvalue()
+    assert has_private_metadata(original)
+
+    cleaned = strip_metadata(original)
+    assert not has_private_metadata(cleaned)
+    assert pixels(cleaned) == pixels(original)  # 재압축 없음 → 화질 손실 0
+    assert strip_metadata(cleaned) == cleaned  # 두 번 해도 같음
+
+
+def test_strip_keeps_jpeg_orientation_and_icc_profile():
+    img = Image.new("RGB", (64, 32), (10, 20, 30))
+    icc = b"\x00" * 128  # 내용은 검사하지 않음, 보존 여부만 확인
+    buf = BytesIO()
+    img.save(buf, "JPEG", exif=gps_exif(orientation=6), icc_profile=icc)
+    cleaned = strip_metadata(buf.getvalue())
+    out = Image.open(BytesIO(cleaned))
+    assert out.getexif().get(0x0112) == 6
+    assert out.info.get("icc_profile") == icc
+    assert not has_private_metadata(cleaned)
+
+
+def test_strip_drops_xmp_and_trailing_data():
+    img = Image.new("RGB", (32, 32))
+    buf = BytesIO()
+    img.save(buf, "JPEG", exif=gps_exif())
+    data = buf.getvalue()
+    xmp = b"http://ns.adobe.com/xap/1.0/\x00<x:xmpmeta><exif:GPSLatitude>37,33</exif:GPSLatitude></x:xmpmeta>"
+    xmp_segment = b"\xff\xe1" + len(xmp + b"..").to_bytes(2, "big") + xmp
+    # SOI 바로 뒤에 XMP 넣고, 끝에 (보조 이미지처럼) 다른 JPEG를 붙임
+    tampered = data[:2] + xmp_segment + data[2:] + data
+    cleaned = strip_metadata(tampered)
+    assert b"GPSLatitude" not in cleaned
+    assert cleaned.count(b"\xff\xd8") == 1
+    assert cleaned.endswith(b"\xff\xd9")
+
+
+def test_strip_leaves_gif_and_unknown_alone():
+    buf = BytesIO()
+    Image.new("P", (8, 8)).save(buf, "GIF")
+    assert strip_metadata(buf.getvalue()) == buf.getvalue()
+    assert strip_metadata(b"not an image") == b"not an image"
